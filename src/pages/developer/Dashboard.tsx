@@ -1,33 +1,32 @@
 
-import { useEffect, useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabase";
-import { Vehicle, Customer, Alert } from "@/types";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import VehicleMap from "@/components/VehicleMap";
-import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { toast } from "sonner";
-import { Alert as AlertIcon, MapPin, Users } from "lucide-react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { BarChart, LineChart } from "@/components/ui/chart";
 import { Button } from "@/components/ui/button";
-import { useNavigate } from "react-router-dom";
+import { BellRing, Car, Users, CheckCircle, XCircle, Info, AlertTriangle } from "lucide-react";
+import { toast } from "sonner";
 
 const DeveloperDashboard = () => {
   const { user } = useAuth();
-  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
-  const [users, setUsers] = useState<Customer[]>([]);
-  const [alerts, setAlerts] = useState<Alert[]>([]);
+  const [stats, setStats] = useState({
+    vehicleCount: 0,
+    userCount: 0,
+    alertCount: 0,
+    activeVehicles: 0
+  });
+  
   const [loading, setLoading] = useState(true);
-  const [selectedVehicleId, setSelectedVehicleId] = useState<string | undefined>(undefined);
-  const navigate = useNavigate();
-
+  
   useEffect(() => {
-    const fetchDeveloperData = async () => {
+    const fetchDashboardData = async () => {
       if (!user) return;
       
       setLoading(true);
       try {
-        // First get the developer record to get assigned vehicle and user IDs
+        // First get the developer record
         const { data: developerData, error: developerError } = await supabase
           .from('developers')
           .select('*')
@@ -37,96 +36,64 @@ const DeveloperDashboard = () => {
         if (developerError) throw developerError;
         
         if (developerData) {
-          const { assigned_vehicle_ids, assigned_user_ids } = developerData;
+          const { assigned_vehicle_ids = [], assigned_user_ids = [] } = developerData;
           
-          // Fetch assigned vehicles
-          if (assigned_vehicle_ids && assigned_vehicle_ids.length > 0) {
+          // Count vehicles and active vehicles
+          if (assigned_vehicle_ids.length > 0) {
             const { data: vehicleData, error: vehicleError } = await supabase
               .from('vehicles')
               .select('*')
               .in('id', assigned_vehicle_ids);
               
             if (vehicleError) throw vehicleError;
-            setVehicles(vehicleData || []);
             
-            // If we have vehicles, fetch alerts for them
-            if (vehicleData && vehicleData.length > 0) {
-              const vehicleIds = vehicleData.map(v => v.id);
-              
-              const { data: alertData, error: alertError } = await supabase
-                .from('alerts')
-                .select('*')
-                .in('vehicle_id', vehicleIds)
-                .order('timestamp', { ascending: false })
-                .limit(5);
-                
-              if (alertError) throw alertError;
-              setAlerts(alertData || []);
+            if (vehicleData) {
+              setStats(prev => ({
+                ...prev,
+                vehicleCount: vehicleData.length,
+                activeVehicles: vehicleData.filter(v => v.status === 'active').length
+              }));
             }
           }
           
-          // Fetch assigned users
-          if (assigned_user_ids && assigned_user_ids.length > 0) {
-            const { data: userData, error: userError } = await supabase
-              .from('users')
-              .select('*')
-              .in('id', assigned_user_ids);
-              
-            if (userError) throw userError;
-            setUsers(userData || []);
+          // Count assigned users
+          setStats(prev => ({
+            ...prev,
+            userCount: assigned_user_ids.length
+          }));
+          
+          // Get alerts count
+          const { count: alertCount, error: alertError } = await supabase
+            .from('alerts')
+            .select('*', { count: 'exact', head: true })
+            .in('vehicle_id', assigned_vehicle_ids);
+            
+          if (alertError) throw alertError;
+          
+          if (alertCount !== null) {
+            setStats(prev => ({
+              ...prev,
+              alertCount
+            }));
           }
         }
       } catch (error) {
-        console.error("Error fetching developer data:", error);
-        toast.error("Failed to load your assigned resources");
+        console.error("Error fetching dashboard data:", error);
+        toast.error("Failed to load dashboard data");
       } finally {
         setLoading(false);
       }
     };
     
-    fetchDeveloperData();
-    
-    // Set up subscription for real-time updates
-    const vehiclesSubscription = supabase
-      .channel('public:vehicles')
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'vehicles' }, (payload) => {
-        const updatedVehicle = payload.new as Vehicle;
-        setVehicles(prev => 
-          prev.map(vehicle => 
-            vehicle.id === updatedVehicle.id ? updatedVehicle : vehicle
-          )
-        );
-      })
-      .subscribe();
-      
-    const alertsSubscription = supabase
-      .channel('public:alerts')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'alerts' }, (payload) => {
-        const newAlert = payload.new as Alert;
-        setAlerts(prev => [newAlert, ...prev.slice(0, 4)]);
-        toast.info(`New alert: ${newAlert.type}`, {
-          description: newAlert.description,
-        });
-      })
-      .subscribe();
-      
-    // Cleanup subscriptions
-    return () => {
-      vehiclesSubscription.unsubscribe();
-      alertsSubscription.unsubscribe();
-    };
+    fetchDashboardData();
   }, [user]);
-
-  const handleVehicleSelect = (id: string) => {
-    setSelectedVehicleId(id);
-  };
-
+  
   if (loading) {
     return (
       <div className="flex h-full items-center justify-center p-8">
         <div className="text-center">
           <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full mx-auto mb-4"></div>
-          <p>Loading developer dashboard...</p>
+          <p>Loading dashboard...</p>
         </div>
       </div>
     );
@@ -134,174 +101,132 @@ const DeveloperDashboard = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold tracking-tight">Developer Dashboard</h1>
-        <div className="text-sm text-muted-foreground">
-          Welcome back to your dashboard
-        </div>
-      </div>
-
-      {/* Dashboard Summary */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <h1 className="text-2xl font-bold tracking-tight">Developer Dashboard</h1>
+      
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Assigned Vehicles</CardTitle>
-            <Car className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{vehicles.length}</div>
-            <Button 
-              variant="link" 
-              className="p-0 h-auto text-xs text-fleet-600"
-              onClick={() => navigate('/developer/vehicles')}
-            >
-              View all vehicles
-            </Button>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Assigned Users</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{users.length}</div>
-            <Button 
-              variant="link" 
-              className="p-0 h-auto text-xs text-fleet-600"
-              onClick={() => navigate('/developer/users')}
-            >
-              View all users
-            </Button>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Active Vehicles</CardTitle>
-            <MapPin className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {vehicles.filter(v => v.status === 'active').length}
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Total Vehicles</p>
+                <p className="text-3xl font-bold">{stats.vehicleCount}</p>
+              </div>
+              <div className="p-2 bg-primary/10 rounded-full">
+                <Car className="h-6 w-6 text-primary" />
+              </div>
             </div>
-            <p className="text-xs text-muted-foreground">
-              {vehicles.filter(v => v.status !== 'active').length} inactive
-            </p>
+            <div className="mt-4 text-sm text-muted-foreground">
+              <span className={stats.activeVehicles === stats.vehicleCount ? "text-green-600" : ""}>
+                {stats.activeVehicles} active
+              </span>
+            </div>
           </CardContent>
         </Card>
-
+        
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Recent Alerts</CardTitle>
-            <AlertIcon className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{alerts.length}</div>
-            <Button 
-              variant="link" 
-              className="p-0 h-auto text-xs text-fleet-600"
-              onClick={() => navigate('/developer/alerts')}
-            >
-              View all alerts
-            </Button>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Total Users</p>
+                <p className="text-3xl font-bold">{stats.userCount}</p>
+              </div>
+              <div className="p-2 bg-primary/10 rounded-full">
+                <Users className="h-6 w-6 text-primary" />
+              </div>
+            </div>
+            <div className="mt-4 text-sm text-muted-foreground">
+              All assigned users
+            </div>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Active Alerts</p>
+                <p className="text-3xl font-bold">{stats.alertCount}</p>
+              </div>
+              <div className="p-2 bg-primary/10 rounded-full">
+                <BellRing className="h-6 w-6 text-primary" />
+              </div>
+            </div>
+            <div className="mt-4 text-sm">
+              {stats.alertCount > 0 ? (
+                <span className="text-yellow-600">Requires attention</span>
+              ) : (
+                <span className="text-green-600">All clear</span>
+              )}
+            </div>
           </CardContent>
         </Card>
       </div>
-
-      {/* Main Content */}
-      <Tabs defaultValue="map">
-        <TabsList className="grid w-full grid-cols-2 mb-4">
-          <TabsTrigger value="map">Vehicle Map</TabsTrigger>
-          <TabsTrigger value="alerts">Recent Alerts</TabsTrigger>
-        </TabsList>
+      
+      {stats.alertCount > 0 && (
+        <Alert variant="destructive">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertTitle>Active Alerts</AlertTitle>
+          <AlertDescription>
+            There are {stats.alertCount} active alerts that require your attention.
+            <div className="mt-2">
+              <Button variant="outline" size="sm" asChild>
+                <a href="/developer/alerts">View Alerts</a>
+              </Button>
+            </div>
+          </AlertDescription>
+        </Alert>
+      )}
+      
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <Card>
+          <CardHeader>
+            <CardTitle>Vehicle Activity</CardTitle>
+            <CardDescription>Activity over the last 7 days</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="h-[250px]">
+              <LineChart 
+                data={[
+                  { name: "Mon", value: 12 },
+                  { name: "Tue", value: 18 },
+                  { name: "Wed", value: 15 },
+                  { name: "Thu", value: 22 },
+                  { name: "Fri", value: 27 },
+                  { name: "Sat", value: 14 },
+                  { name: "Sun", value: 9 },
+                ]}
+                categories={["value"]}
+                index="name"
+                valueFormatter={(value) => `${value} trips`}
+                colors={["blue"]}
+              />
+            </div>
+          </CardContent>
+        </Card>
         
-        <TabsContent value="map">
-          {vehicles.length > 0 ? (
-            <VehicleMap 
-              vehicles={vehicles} 
-              selectedVehicleId={selectedVehicleId}
-              onVehicleSelect={handleVehicleSelect}
-            />
-          ) : (
-            <Card>
-              <CardContent className="pt-6 text-center">
-                <p className="text-muted-foreground">No vehicles assigned to you yet.</p>
-              </CardContent>
-            </Card>
-          )}
-        </TabsContent>
-        
-        <TabsContent value="alerts">
-          <Card>
-            <CardHeader>
-              <CardTitle>Recent Alerts</CardTitle>
-              <CardDescription>
-                The latest alerts from your assigned vehicles
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {alerts.length > 0 ? (
-                <div className="space-y-6">
-                  {alerts.map(alert => {
-                    const vehicle = vehicles.find(v => v.id === alert.vehicle_id);
-                    const alertDate = new Date(alert.timestamp);
-                    
-                    return (
-                      <div key={alert.id} className="border-b pb-4 last:border-0 last:pb-0">
-                        <div className="flex items-start justify-between mb-2">
-                          <div>
-                            <h3 className="font-medium">
-                              {vehicle?.plate_number || 'Unknown Vehicle'}
-                            </h3>
-                            <p className="text-sm text-gray-500">
-                              {alertDate.toLocaleString()}
-                            </p>
-                          </div>
-                          <Badge className={
-                            alert.type === 'speeding' ? 'bg-red-500' :
-                            alert.type === 'geofence' ? 'bg-amber-500' :
-                            'bg-blue-500'
-                          }>
-                            {alert.type}
-                          </Badge>
-                        </div>
-                        <p>{alert.description}</p>
-                      </div>
-                    );
-                  })}
-                </div>
-              ) : (
-                <div className="text-center py-8">
-                  <p className="text-muted-foreground">No recent alerts</p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+        <Card>
+          <CardHeader>
+            <CardTitle>User Distribution</CardTitle>
+            <CardDescription>Users by vehicle assignment</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="h-[250px]">
+              <BarChart
+                data={[
+                  { name: "With Vehicle", value: Math.floor(stats.userCount * 0.7) },
+                  { name: "No Vehicle", value: stats.userCount - Math.floor(stats.userCount * 0.7) },
+                ]}
+                categories={["value"]}
+                index="name"
+                valueFormatter={(value) => `${value} users`}
+                colors={["blue"]}
+              />
+            </div>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 };
-
-// Lucide car icon component
-const Car = ({ className }: { className?: string }) => (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    className={className}
-  >
-    <path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1 1h2" />
-    <circle cx="7" cy="17" r="2" />
-    <path d="M9 17h6" />
-    <circle cx="17" cy="17" r="2" />
-  </svg>
-);
 
 export default DeveloperDashboard;

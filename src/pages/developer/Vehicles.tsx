@@ -139,6 +139,18 @@ const DeveloperVehicles = () => {
     return date.toLocaleString();
   };
   
+  // Handle view on map click, including handling inactive tabs
+  const handleViewOnMap = (vehicleId: string) => {
+    setSelectedVehicleId(vehicleId);
+    
+    // Get the map tab element and check if it's inactive
+    const mapTab = document.querySelector('[value="map"]') as HTMLElement;
+    if (mapTab && mapTab.getAttribute('data-state') === 'inactive') {
+      // Trigger a click on the map tab
+      mapTab.click();
+    }
+  };
+  
   if (loading) {
     return (
       <div className="flex h-full items-center justify-center p-8">
@@ -300,11 +312,7 @@ const DeveloperVehicles = () => {
                           <Button 
                             variant="ghost" 
                             size="sm"
-                            onClick={() => {
-                              setSelectedVehicleId(vehicle.id);
-                              // Switch to map view when selecting a vehicle
-                              document.querySelector('[data-state="inactive"][value="map"]')?.click();
-                            }}
+                            onClick={() => handleViewOnMap(vehicle.id)}
                           >
                             View on Map
                           </Button>

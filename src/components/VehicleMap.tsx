@@ -1,8 +1,9 @@
 
 import { useEffect, useRef } from "react";
 import { Vehicle } from "@/types";
-import L from "leaflet";
 import { toast } from "sonner";
+import L from "leaflet";
+import "leaflet/dist/leaflet.css"; // Import Leaflet CSS
 
 interface VehicleMapProps {
   vehicles: Vehicle[];
@@ -56,8 +57,9 @@ const VehicleMap = ({ vehicles, selectedVehicleId, onVehicleSelect }: VehicleMap
             marker.on('popupopen', () => {
               setTimeout(() => {
                 const button = document.querySelector(`.select-vehicle[data-id="${vehicle.id}"]`);
-                if (button) {
-                  button.addEventListener('click', () => {
+                if (button && onVehicleSelect) {
+                  // Using addEventListener instead of directly setting onclick
+                  (button as HTMLElement).addEventListener('click', () => {
                     if (onVehicleSelect) {
                       onVehicleSelect(vehicle.id);
                     }
@@ -150,8 +152,9 @@ const VehicleMap = ({ vehicles, selectedVehicleId, onVehicleSelect }: VehicleMap
             marker.on('popupopen', () => {
               setTimeout(() => {
                 const button = document.querySelector(`.select-vehicle[data-id="${vehicle.id}"]`);
-                if (button) {
-                  button.addEventListener('click', () => {
+                if (button && onVehicleSelect) {
+                  // Using addEventListener instead of directly setting onclick
+                  (button as HTMLElement).addEventListener('click', () => {
                     if (onVehicleSelect) {
                       onVehicleSelect(vehicle.id);
                     }
