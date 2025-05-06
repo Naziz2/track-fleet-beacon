@@ -4,7 +4,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabase";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { BarChart, LineChart } from "@/components/ui/chart";
+import { BarChart, LineChart } from "@/components/ui/recharts";
 import { Button } from "@/components/ui/button";
 import { BellRing, Car, Users, CheckCircle, XCircle, Info, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
