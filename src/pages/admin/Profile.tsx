@@ -33,22 +33,24 @@ const AdminProfile = () => {
       try {
         const { data, error } = await supabase
           .from('admins')
-          .select('*')
+          .select()
           .eq('id', user.id)
           .single();
           
         if (error) throw error;
         
-        setProfileData(data);
+        setProfileData(data as Admin);
         
         // Set form data
-        setFirstName(data.first_name || "");
-        setLastName(data.last_name || "");
-        setCin(data.cin || "");
-        setPhone(data.phone || "");
-        setCompanyName(data.company_name || "");
-        setAddress(data.address || "");
-        setEmail(data.email || user.email || "");
+        if (data) {
+          setFirstName(data.first_name || "");
+          setLastName(data.last_name || "");
+          setCin(data.cin || "");
+          setPhone(data.phone || "");
+          setCompanyName(data.company_name || "");
+          setAddress(data.address || "");
+          setEmail(data.email || user.email || "");
+        }
       } catch (error) {
         console.error("Error fetching profile:", error);
         toast.error("Failed to load profile");
@@ -81,14 +83,17 @@ const AdminProfile = () => {
         updated_at: new Date().toISOString(),
       };
       
-      const { error } = await supabase.from('admins').update(updates).eq('id', user.id);
+      const { error } = await supabase
+        .from('admins')
+        .update(updates)
+        .eq('id', user.id);
       
       if (error) throw error;
       
       setProfileData({
         ...profileData!,
         ...updates,
-      });
+      } as Admin);
       
       toast.success("Profile updated successfully");
       setIsEditing(false);

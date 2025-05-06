@@ -70,8 +70,8 @@ export interface Database {
           company_name: string
           address: string
           created_at?: string
-          assigned_vehicle_ids: string[]
-          assigned_user_ids: string[]
+          assigned_vehicle_ids?: string[]
+          assigned_user_ids?: string[]
           admin_uid: string
         }
         Update: {

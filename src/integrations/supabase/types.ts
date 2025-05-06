@@ -9,7 +9,182 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      admins: {
+        Row: {
+          address: string
+          cin: string
+          company_name: string
+          created_at: string
+          email: string
+          first_name: string
+          id: string
+          last_name: string
+          phone: string
+        }
+        Insert: {
+          address: string
+          cin: string
+          company_name: string
+          created_at?: string
+          email: string
+          first_name: string
+          id: string
+          last_name: string
+          phone: string
+        }
+        Update: {
+          address?: string
+          cin?: string
+          company_name?: string
+          created_at?: string
+          email?: string
+          first_name?: string
+          id?: string
+          last_name?: string
+          phone?: string
+        }
+        Relationships: []
+      }
+      alerts: {
+        Row: {
+          description: string
+          id: string
+          timestamp: string
+          type: string
+          vehicle_id: string
+        }
+        Insert: {
+          description: string
+          id?: string
+          timestamp?: string
+          type: string
+          vehicle_id: string
+        }
+        Update: {
+          description?: string
+          id?: string
+          timestamp?: string
+          type?: string
+          vehicle_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "alerts_vehicle_id_fkey"
+            columns: ["vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "vehicles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      developers: {
+        Row: {
+          address: string
+          admin_uid: string
+          assigned_user_ids: string[]
+          assigned_vehicle_ids: string[]
+          cin: string
+          company_name: string
+          created_at: string
+          email: string
+          first_name: string
+          id: string
+          last_name: string
+          phone: string
+        }
+        Insert: {
+          address: string
+          admin_uid: string
+          assigned_user_ids?: string[]
+          assigned_vehicle_ids?: string[]
+          cin: string
+          company_name: string
+          created_at?: string
+          email: string
+          first_name: string
+          id: string
+          last_name: string
+          phone: string
+        }
+        Update: {
+          address?: string
+          admin_uid?: string
+          assigned_user_ids?: string[]
+          assigned_vehicle_ids?: string[]
+          cin?: string
+          company_name?: string
+          created_at?: string
+          email?: string
+          first_name?: string
+          id?: string
+          last_name?: string
+          phone?: string
+        }
+        Relationships: []
+      }
+      users: {
+        Row: {
+          address: string
+          admin_uid: string
+          cin: string
+          company_name: string
+          first_name: string
+          id: string
+          last_name: string
+          phone: string
+          vehicle_id: string | null
+        }
+        Insert: {
+          address: string
+          admin_uid: string
+          cin: string
+          company_name: string
+          first_name: string
+          id: string
+          last_name: string
+          phone: string
+          vehicle_id?: string | null
+        }
+        Update: {
+          address?: string
+          admin_uid?: string
+          cin?: string
+          company_name?: string
+          first_name?: string
+          id?: string
+          last_name?: string
+          phone?: string
+          vehicle_id?: string | null
+        }
+        Relationships: []
+      }
+      vehicles: {
+        Row: {
+          admin_uid: string
+          current_location: Json
+          history: Json[]
+          id: string
+          plate_number: string
+          status: string
+        }
+        Insert: {
+          admin_uid: string
+          current_location: Json
+          history?: Json[]
+          id?: string
+          plate_number: string
+          status: string
+        }
+        Update: {
+          admin_uid?: string
+          current_location?: Json
+          history?: Json[]
+          id?: string
+          plate_number?: string
+          status?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

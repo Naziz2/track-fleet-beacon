@@ -62,32 +62,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Determine the user's role based on their ID
   async function determineUserRole(userId: string) {
-    // Check admin table
-    const { data: adminData } = await supabase
-      .from('admins')
-      .select('*')
-      .eq('id', userId)
-      .single();
-    
-    if (adminData) {
-      setUserRole('admin');
-      return;
-    }
+    try {
+      // Check admin table
+      const { data: adminData } = await supabase
+        .from('admins')
+        .select()
+        .eq('id', userId)
+        .single();
+      
+      if (adminData) {
+        setUserRole('admin');
+        return;
+      }
 
-    // Check developer table
-    const { data: developerData } = await supabase
-      .from('developers')
-      .select('*')
-      .eq('id', userId)
-      .single();
-    
-    if (developerData) {
-      setUserRole('developer');
-      return;
-    }
+      // Check developer table
+      const { data: developerData } = await supabase
+        .from('developers')
+        .select()
+        .eq('id', userId)
+        .single();
+      
+      if (developerData) {
+        setUserRole('developer');
+        return;
+      }
 
-    // Default role
-    setUserRole('unassigned');
+      // Default role
+      setUserRole('unassigned');
+    } catch (error) {
+      console.error("Error determining user role:", error);
+      setUserRole('unassigned');
+    }
   }
 
   const signIn = async (email: string, password: string) => {
