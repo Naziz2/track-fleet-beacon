@@ -68,7 +68,7 @@ const Register = () => {
         }
         
         toast.success("Registration successful", {
-          description: "Please check your email to confirm your account",
+          description: "You can now log in to your account",
         });
         
         navigate("/login");

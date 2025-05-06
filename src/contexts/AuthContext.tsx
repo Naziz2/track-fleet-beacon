@@ -101,7 +101,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signUp = async (email: string, password: string) => {
-    const { data, error } = await supabase.auth.signUp({ email, password });
+    // Add emailRedirectTo with the current URL to redirect after signup
+    // Added autoConfirm: true option to skip email confirmation
+    const { data, error } = await supabase.auth.signUp({ 
+      email, 
+      password,
+      options: {
+        emailRedirectTo: window.location.origin,
+        data: {
+          email_confirmed: true // This adds a user metadata flag
+        }
+      }
+    });
+    
+    // If signup is successful, immediately sign in the user
+    if (data.user && !error) {
+      await supabase.auth.signInWithPassword({ email, password });
+    }
+    
     return { data, error };
   };
 
