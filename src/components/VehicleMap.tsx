@@ -1,192 +1,148 @@
-
-import { useEffect, useRef } from "react";
-import { Vehicle } from "@/types";
-import { toast } from "sonner";
+import { useEffect, useState } from "react";
+import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
+import "leaflet/dist/leaflet.css";
 import L from "leaflet";
-import "leaflet/dist/leaflet.css"; // Import Leaflet CSS
+import { Vehicle, Location } from "@/types";
 
-interface VehicleMapProps {
-  vehicles: Vehicle[];
-  selectedVehicleId?: string;
-  onVehicleSelect?: (id: string) => void;
+// Fix default marker icon issue in Leaflet
+import iconRetinaUrl from 'leaflet/dist/images/marker-icon-2x.png';
+import iconUrl from 'leaflet/dist/images/marker-icon.png';
+import shadowUrl from 'leaflet/dist/images/marker-shadow.png';
+
+// Override default Leaflet marker icons
+const defaultIcon = L.icon({
+  iconRetinaUrl,
+  iconUrl,
+  shadowUrl,
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
+  popupAnchor: [1, -34],
+  tooltipAnchor: [16, -28],
+  shadowSize: [41, 41]
+});
+
+L.Marker.prototype.options.icon = defaultIcon;
+
+// Custom Icons
+const activeVehicleIcon = L.icon({
+  iconUrl: '/images/active-vehicle-marker.png',
+  iconRetinaUrl: '/images/active-vehicle-marker.png',
+  shadowUrl: null,
+  iconSize: [30, 48],
+  iconAnchor: [15, 48],
+  popupAnchor: [0, -48],
+});
+
+const historyMarkerIcon = L.icon({
+  iconUrl: '/images/history-marker.png',
+  iconRetinaUrl: '/images/history-marker.png',
+  shadowUrl: null,
+  iconSize: [20, 32],
+  iconAnchor: [10, 32],
+  popupAnchor: [0, -32],
+});
+
+function MapView({ center }: { center: [number, number] }) {
+  const map = useMap();
+  useEffect(() => {
+    map.setView(center, 13);
+  }, [map, center]);
+
+  return null;
 }
 
-const VehicleMap = ({ vehicles, selectedVehicleId, onVehicleSelect }: VehicleMapProps) => {
-  const mapRef = useRef<L.Map | null>(null);
-  const mapContainerRef = useRef<HTMLDivElement>(null);
-  const markersRef = useRef<{ [key: string]: L.Marker }>({});
-
-  useEffect(() => {
-    // Initialize map if it doesn't exist
-    if (!mapContainerRef.current || mapRef.current) return;
-
-    try {
-      mapRef.current = L.map(mapContainerRef.current).setView([33.5731, -7.5898], 13);
-      
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-      }).addTo(mapRef.current);
-
-      // Create custom marker icon
-      const markerIcon = L.icon({
-        iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-blue.png',
-        shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
-        iconSize: [25, 41],
-        iconAnchor: [12, 41],
-        popupAnchor: [1, -34],
-        shadowSize: [41, 41]
-      });
-
-      // Create markers for vehicles on initial load
-      vehicles.forEach(vehicle => {
-        if (vehicle.current_location && typeof vehicle.current_location === 'object') {
-          const { lat, lng } = vehicle.current_location;
-          
-          if (typeof lat === 'number' && typeof lng === 'number') {
-            const marker = L.marker([lat, lng], { icon: markerIcon })
-              .addTo(mapRef.current!)
-              .bindPopup(`
-                <b>${vehicle.plate_number}</b><br>
-                Status: ${vehicle.status}<br>
-                <button class="select-vehicle" data-id="${vehicle.id}">Select Vehicle</button>
-              `);
-              
-            markersRef.current[vehicle.id] = marker;
-            
-            // Add event listeners to the popup content after it's added to the DOM
-            marker.on('popupopen', () => {
-              setTimeout(() => {
-                const button = document.querySelector(`.select-vehicle[data-id="${vehicle.id}"]`);
-                if (button && onVehicleSelect) {
-                  // Using addEventListener instead of directly setting onclick
-                  (button as HTMLElement).addEventListener('click', () => {
-                    if (onVehicleSelect) {
-                      onVehicleSelect(vehicle.id);
-                    }
-                  });
-                }
-              }, 10);
-            });
-          }
-        }
-      });
-
-      // Set view to contain all markers if multiple vehicles
-      if (vehicles.length > 1) {
-        const latLngs = vehicles
-          .filter(v => v.current_location && typeof v.current_location === 'object')
-          .map(v => [v.current_location.lat, v.current_location.lng])
-          .filter(coords => typeof coords[0] === 'number' && typeof coords[1] === 'number') as [number, number][];
-          
-        if (latLngs.length > 0) {
-          mapRef.current.fitBounds(latLngs);
-        }
-      }
-    } catch (error) {
-      console.error("Error initializing map:", error);
-      toast.error("Failed to load map");
+// Extend the Location type to handle either direct or JSON format
+const parseLocation = (location: any): Location => {
+  // If it's already a Location object
+  if (typeof location === 'object' && 'lat' in location && 'lng' in location) {
+    return location as Location;
+  }
+  
+  // If it's a JSON structure, parse it
+  try {
+    if (typeof location === 'object') {
+      return {
+        lat: Number(location.lat),
+        lng: Number(location.lng),
+        timestamp: location.timestamp
+      };
     }
+    // If it's a string, try to parse it
+    else if (typeof location === 'string') {
+      const parsed = JSON.parse(location);
+      return {
+        lat: Number(parsed.lat),
+        lng: Number(parsed.lng),
+        timestamp: parsed.timestamp
+      };
+    }
+  } catch (e) {
+    console.error("Failed to parse location:", e);
+  }
+  
+  // Fallback to default location
+  return { lat: 0, lng: 0 };
+};
 
-    // Cleanup function
-    return () => {
-      if (mapRef.current) {
-        mapRef.current.remove();
-        mapRef.current = null;
-      }
-    };
-  }, []);
+interface VehicleMapProps {
+  vehicle: Vehicle;
+  showHistory?: boolean;
+}
 
-  // Update markers when vehicles change
-  useEffect(() => {
-    if (!mapRef.current) return;
-
-    // Create custom marker icon
-    const markerIcon = L.icon({
-      iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-blue.png',
-      shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
-      iconSize: [25, 41],
-      iconAnchor: [12, 41],
-      popupAnchor: [1, -34],
-      shadowSize: [41, 41]
-    });
-
-    const selectedMarkerIcon = L.icon({
-      iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-red.png',
-      shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
-      iconSize: [25, 41],
-      iconAnchor: [12, 41],
-      popupAnchor: [1, -34],
-      shadowSize: [41, 41]
-    });
-
-    // Update or create markers
-    vehicles.forEach(vehicle => {
-      if (vehicle.current_location && typeof vehicle.current_location === 'object') {
-        const { lat, lng } = vehicle.current_location;
-        
-        if (typeof lat === 'number' && typeof lng === 'number') {
-          const icon = vehicle.id === selectedVehicleId ? selectedMarkerIcon : markerIcon;
-          
-          if (markersRef.current[vehicle.id]) {
-            // Update existing marker
-            markersRef.current[vehicle.id].setLatLng([lat, lng]);
-            markersRef.current[vehicle.id].setIcon(icon);
-            markersRef.current[vehicle.id].setPopupContent(`
-              <b>${vehicle.plate_number}</b><br>
-              Status: ${vehicle.status}<br>
-              <button class="select-vehicle" data-id="${vehicle.id}">Select Vehicle</button>
-            `);
-          } else {
-            // Create new marker
-            const marker = L.marker([lat, lng], { icon })
-              .addTo(mapRef.current!)
-              .bindPopup(`
-                <b>${vehicle.plate_number}</b><br>
-                Status: ${vehicle.status}<br>
-                <button class="select-vehicle" data-id="${vehicle.id}">Select Vehicle</button>
-              `);
-              
-            markersRef.current[vehicle.id] = marker;
-            
-            // Add event listeners
-            marker.on('popupopen', () => {
-              setTimeout(() => {
-                const button = document.querySelector(`.select-vehicle[data-id="${vehicle.id}"]`);
-                if (button && onVehicleSelect) {
-                  // Using addEventListener instead of directly setting onclick
-                  (button as HTMLElement).addEventListener('click', () => {
-                    if (onVehicleSelect) {
-                      onVehicleSelect(vehicle.id);
-                    }
-                  });
-                }
-              }, 10);
-            });
-          }
-          
-          // If this is the selected vehicle, pan to it
-          if (vehicle.id === selectedVehicleId) {
-            mapRef.current!.setView([lat, lng], 15);
-            markersRef.current[vehicle.id].openPopup();
-          }
-        }
-      }
-    });
-    
-    // Remove markers that no longer exist
-    Object.keys(markersRef.current).forEach(id => {
-      if (!vehicles.find(v => v.id === id)) {
-        mapRef.current!.removeLayer(markersRef.current[id]);
-        delete markersRef.current[id];
-      }
-    });
-  }, [vehicles, selectedVehicleId, onVehicleSelect]);
-
+export const VehicleMap = ({ vehicle, showHistory = false }: VehicleMapProps) => {
+  // Process the current_location to ensure it's in the right format
+  const currentLocation = parseLocation(vehicle.current_location);
+  
+  // Process the history locations
+  const historyLocations = vehicle.history
+    ?.map(loc => parseLocation(loc))
+    .filter(loc => loc.lat !== 0 && loc.lng !== 0) || [];
+  
   return (
-    <div className="h-[500px] md:h-[600px] lg:h-[700px] relative rounded-lg border shadow-sm overflow-hidden">
-      <div ref={mapContainerRef} className="h-full w-full" />
+    <div className="h-full min-h-[300px] w-full rounded-md border">
+      <MapContainer
+        center={[currentLocation.lat, currentLocation.lng]}
+        zoom={13}
+        className="h-full w-full rounded-md"
+      >
+        <MapView center={[currentLocation.lat, currentLocation.lng]} />
+        <TileLayer
+          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+        />
+        
+        {/* Show current vehicle location */}
+        <Marker 
+          position={[currentLocation.lat, currentLocation.lng]} 
+          icon={activeVehicleIcon}
+        >
+          <Popup>
+            <div>
+              <p className="font-bold">{vehicle.plate_number}</p>
+              <p>Current Location</p>
+            </div>
+          </Popup>
+        </Marker>
+        
+        {/* Show history if enabled */}
+        {showHistory && historyLocations.map((location, index) => (
+          <Marker
+            key={index}
+            position={[location.lat, location.lng]}
+            icon={historyMarkerIcon}
+          >
+            <Popup>
+              <div>
+                <p className="font-bold">{vehicle.plate_number}</p>
+                <p>History Point {index + 1}</p>
+                {location.timestamp && (
+                  <p>{new Date(location.timestamp).toLocaleString()}</p>
+                )}
+              </div>
+            </Popup>
+          </Marker>
+        ))}
+      </MapContainer>
     </div>
   );
 };
-
-export default VehicleMap;

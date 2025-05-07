@@ -1,5 +1,4 @@
-
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -14,6 +13,15 @@ const Login = () => {
   const [isLoading, setIsLoading] = useState(false);
   const { signIn, userRole } = useAuth();
   const navigate = useNavigate();
+
+  // Add useEffect to handle automatic redirect based on role
+  useEffect(() => {
+    if (userRole === 'admin') {
+      navigate('/admin/dashboard');
+    } else if (userRole === 'developer') {
+      navigate('/developer/dashboard');
+    }
+  }, [userRole, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -30,16 +38,8 @@ const Login = () => {
       }
       
       toast.success("Logged in successfully");
-
-      // Redirect based on role
-      if (userRole === 'admin') {
-        navigate('/admin/dashboard');
-      } else if (userRole === 'developer') {
-        navigate('/developer/dashboard');
-      } else {
-        // Handle unassigned role - could redirect to a profile completion page
-        toast.info("Your account needs to be assigned a role by an administrator");
-      }
+      
+      // Navigate is done in useEffect based on userRole
     } catch (error) {
       toast.error("An unexpected error occurred");
       console.error(error);

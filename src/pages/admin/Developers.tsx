@@ -186,17 +186,54 @@ const AdminDevelopers = () => {
         
         toast.success("Developer updated successfully");
       } else {
-        // For now, just display a message since we can't directly create users via the Supabase client
-        toast.info("In a real app, this would create a new developer account with an invitation email");
-        // In a real implementation, you would:
-        // 1. Create a user in Supabase Auth
-        // 2. Then create a developer record with the user's ID
+        // Create user in auth and then create developer record
+        const tempPassword = Math.random().toString(36).slice(-8);
+        
+        // First create the user in auth
+        const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+          email: email,
+          password: tempPassword,
+          email_confirm: true
+        });
+        
+        if (authError) throw authError;
+        
+        if (authData?.user) {
+          // Then create the developer record
+          const { error: devError } = await supabase
+            .from('developers')
+            .insert({
+              id: authData.user.id,
+              email: email,
+              first_name: firstName,
+              last_name: lastName,
+              cin: cin,
+              phone: phone,
+              company_name: companyName,
+              address: address,
+              admin_uid: user.id,
+              assigned_vehicle_ids: [],
+              assigned_user_ids: []
+            });
+            
+          if (devError) {
+            // If developer creation fails, we should delete the auth user
+            await supabase.auth.admin.deleteUser(authData.user.id);
+            throw devError;
+          }
+          
+          toast.success("Developer created successfully", {
+            description: `Temporary password: ${tempPassword}`
+          });
+        }
       }
       
       setDialogOpen(false);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error saving developer:", error);
-      toast.error("Failed to save developer");
+      toast.error("Failed to save developer", {
+        description: error.message
+      });
     }
   };
   

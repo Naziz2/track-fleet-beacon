@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabase";
@@ -206,6 +205,7 @@ const AdminUsers = () => {
     }
     
     try {
+      // Prepare user data
       const userData = {
         first_name: firstName,
         last_name: lastName,
@@ -228,10 +228,17 @@ const AdminUsers = () => {
         
         toast.success("User updated successfully");
       } else {
-        // Create new user
+        // Create new user with a UUID
+        const { data: idData } = await supabase.rpc('generate_uuid');
+        const newId = idData as string;
+        
+        // Create new user with the generated UUID
         const { data, error } = await supabase
           .from('users')
-          .insert(userData)
+          .insert({
+            id: newId,
+            ...userData
+          })
           .select();
           
         if (error) throw error;
@@ -242,9 +249,11 @@ const AdminUsers = () => {
       }
       
       setDialogOpen(false);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error saving user:", error);
-      toast.error("Failed to save user");
+      toast.error("Failed to save user", { 
+        description: error.message 
+      });
     }
   };
   

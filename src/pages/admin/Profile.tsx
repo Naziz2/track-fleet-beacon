@@ -95,11 +95,24 @@ const AdminProfile = () => {
         ...updates,
       } as Admin);
       
+      // Also update auth email if changed
+      if (email !== user.email) {
+        const { error: updateEmailError } = await supabase.auth.updateUser({
+          email: email
+        });
+        
+        if (updateEmailError) {
+          throw updateEmailError;
+        }
+      }
+      
       toast.success("Profile updated successfully");
       setIsEditing(false);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error updating profile:", error);
-      toast.error("Failed to update profile");
+      toast.error("Failed to update profile", {
+        description: error.message
+      });
     }
   };
   

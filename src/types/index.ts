@@ -3,12 +3,18 @@ import { Json } from "@/integrations/supabase/types";
 
 export type UserRole = 'admin' | 'developer' | 'unassigned';
 
+export interface Location {
+  lat: number;
+  lng: number;
+  timestamp?: string;
+}
+
 export interface Vehicle {
   id: string;
   plate_number: string;
   status: 'active' | 'inactive' | 'maintenance';
-  current_location: Json;
-  history: Json[];
+  current_location: Location;
+  history: Location[];
   admin_uid: string;
 }
 
@@ -31,6 +37,9 @@ export interface User {
   vehicle_id: string | null;
   admin_uid: string;
 }
+
+// Alias for User to maintain compatibility
+export type Customer = User;
 
 export interface Developer {
   id: string;
