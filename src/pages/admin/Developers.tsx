@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabase";
-import { Developer } from "@/types";
+import { Developer, mapDeveloper } from "@/types";
 import { toast } from "sonner";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -41,6 +41,7 @@ const AdminDevelopers = () => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [selectedDeveloper, setSelectedDeveloper] = useState<Developer | null>(null);
+  const [submitting, setSubmitting] = useState(false);
   
   // Form state
   const [firstName, setFirstName] = useState("");
@@ -66,8 +67,9 @@ const AdminDevelopers = () => {
           
         if (error) throw error;
         
-        setDevelopers(data || []);
-        setFilteredDevelopers(data || []);
+        const mappedDevelopers = (data || []).map(mapDeveloper);
+        setDevelopers(mappedDevelopers);
+        setFilteredDevelopers(mappedDevelopers);
       } catch (error) {
         console.error("Error fetching developers:", error);
         toast.error("Failed to load developers");
@@ -83,7 +85,7 @@ const AdminDevelopers = () => {
       .channel('developers_changes')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'developers' }, (payload) => {
         if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
-          const developer = payload.new as Developer;
+          const developer = mapDeveloper(payload.new as any);
           if (developer.admin_uid === user?.id) {
             setDevelopers(prev => {
               const exists = prev.find(d => d.id === developer.id);
@@ -179,13 +181,14 @@ const AdminDevelopers = () => {
       return;
     }
     
+    setSubmitting(true);
     try {
       if (isEditing && selectedDeveloper) {
         // Update existing developer
         const updates = {
           first_name: firstName,
           last_name: lastName,
-          email: email, // Note: This won't update the auth email
+          email: email,
           cin: cin,
           phone: phone,
           company_name: companyName,
@@ -202,17 +205,15 @@ const AdminDevelopers = () => {
         toast.success("Developer updated successfully");
       } else {
         // Create new developer account directly
-        
         // 1. Create auth user account
-        const { data: authData, error: authError } = await supabase.auth.signUp({
+        const { data: authData, error: authError } = await supabase.auth.admin.createUser({
           email: email,
           password: password,
-          options: {
-            data: {
-              first_name: firstName,
-              last_name: lastName,
-              role: 'developer'
-            }
+          email_confirm: true, // Auto-confirm email
+          user_metadata: {
+            first_name: firstName,
+            last_name: lastName,
+            role: 'developer'
           }
         });
         
@@ -247,9 +248,63 @@ const AdminDevelopers = () => {
       setDialogOpen(false);
     } catch (error: any) {
       console.error("Error saving developer:", error);
+      if (error.message.includes('service_role') || error.message.includes('permission')) {
+        // Fallback to regular sign up if admin functions fail
+        try {
+          const { data: authData, error: signUpError } = await supabase.auth.signUp({
+            email: email,
+            password: password,
+            options: {
+              data: {
+                first_name: firstName,
+                last_name: lastName,
+                role: 'developer'
+              }
+            }
+          });
+          
+          if (signUpError) throw signUpError;
+          
+          if (!authData.user) {
+            throw new Error("Failed to create user account");
+          }
+          
+          // Create developer record
+          const { error: devError } = await supabase
+            .from('developers')
+            .insert({
+              id: authData.user.id,
+              first_name: firstName,
+              last_name: lastName,
+              email: email,
+              cin: cin,
+              phone: phone,
+              company_name: companyName,
+              address: address,
+              admin_uid: user.id,
+              assigned_vehicle_ids: [],
+              assigned_user_ids: []
+            });
+          
+          if (devError) throw devError;
+          
+          toast.success("Developer account created successfully");
+          setDialogOpen(false);
+          return;
+        } catch (signUpError: any) {
+          console.error("Fallback signup error:", signUpError);
+          toast.error("Failed to create developer account", { 
+            description: signUpError.message 
+          });
+          return;
+        }
+      }
+      
       toast.error("Failed to save developer", { 
         description: error.message 
       });
+    } finally {
+      setSubmitting(false);
     }
   };
   
@@ -393,7 +448,7 @@ const AdminDevelopers = () => {
             <DialogDescription>
               {isEditing
                 ? "Update the developer details below."
-                : "Fill in the details for the new developer. This will send them an invitation email."}
+                : "Fill in the details for the new developer."}
             </DialogDescription>
           </DialogHeader>
           <form onSubmit={handleSubmit}>
@@ -412,6 +467,23 @@ const AdminDevelopers = () => {
                   required
                 />
               </div>
+              
+              {!isEditing && (
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="password" className="text-right">
+                    Password
+                  </Label>
+                  <Input
+                    id="password"
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="col-span-3"
+                    required={!isEditing}
+                  />
+                </div>
+              )}
+              
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="first-name" className="text-right">
                   First name
@@ -486,7 +558,9 @@ const AdminDevelopers = () => {
               </div>
             </div>
             <DialogFooter>
-              <Button type="submit">{isEditing ? 'Update Developer' : 'Add Developer'}</Button>
+              <Button type="submit" disabled={submitting}>
+                {submitting ? 'Processing...' : isEditing ? 'Update Developer' : 'Add Developer'}
+              </Button>
             </DialogFooter>
           </form>
         </DialogContent>

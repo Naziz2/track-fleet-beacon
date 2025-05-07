@@ -46,7 +46,7 @@ const historyMarkerIcon = L.icon({
 function MapView({ center }: { center: [number, number] }) {
   const map = useMap();
   useEffect(() => {
-    map.setView(center, 13);
+    map.setView(center, map.getZoom() || 13);
   }, [map, center]);
 
   return null;
@@ -57,6 +57,13 @@ interface VehicleMapProps {
   showHistory?: boolean;
 }
 
+interface MultiVehicleMapProps {
+  vehicles: Vehicle[];
+  selectedVehicleId?: string;
+  onVehicleSelect?: (id: string) => void;
+}
+
+// Component for showing a single vehicle
 export const VehicleMap = ({ vehicle, showHistory = false }: VehicleMapProps) => {
   // Process the current_location to ensure it's in the right format
   const currentLocation = parseLocation(vehicle.current_location);
@@ -110,6 +117,80 @@ export const VehicleMap = ({ vehicle, showHistory = false }: VehicleMapProps) =>
             </Popup>
           </Marker>
         ))}
+      </MapContainer>
+    </div>
+  );
+};
+
+// Component for showing multiple vehicles
+export const MultiVehicleMap = ({ vehicles, selectedVehicleId, onVehicleSelect }: MultiVehicleMapProps) => {
+  // Find center point based on selected vehicle or first valid vehicle
+  let centerLat = 0;
+  let centerLng = 0;
+  
+  if (selectedVehicleId) {
+    const selectedVehicle = vehicles.find(v => v.id === selectedVehicleId);
+    if (selectedVehicle) {
+      const loc = parseLocation(selectedVehicle.current_location);
+      centerLat = loc.lat;
+      centerLng = loc.lng;
+    }
+  }
+  
+  // If no selected vehicle or invalid location, use the first vehicle with valid location
+  if (centerLat === 0 && centerLng === 0 && vehicles.length > 0) {
+    for (const vehicle of vehicles) {
+      const loc = parseLocation(vehicle.current_location);
+      if (loc.lat !== 0 && loc.lng !== 0) {
+        centerLat = loc.lat;
+        centerLng = loc.lng;
+        break;
+      }
+    }
+  }
+  
+  // Fallback to a default location if no valid vehicle location found
+  if (centerLat === 0 && centerLng === 0) {
+    centerLat = 37.7749;
+    centerLng = -122.4194; // Default: San Francisco
+  }
+  
+  return (
+    <div className="h-full min-h-[300px] w-full rounded-md border">
+      <MapContainer
+        center={[centerLat, centerLng]}
+        zoom={11}
+        className="h-full w-full rounded-md"
+      >
+        <MapView center={[centerLat, centerLng]} />
+        <TileLayer
+          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+        />
+        
+        {/* Show all vehicles */}
+        {vehicles.map((vehicle) => {
+          const loc = parseLocation(vehicle.current_location);
+          if (loc.lat === 0 && loc.lng === 0) return null;
+          
+          return (
+            <Marker
+              key={vehicle.id}
+              position={[loc.lat, loc.lng]}
+              icon={activeVehicleIcon}
+              eventHandlers={onVehicleSelect ? {
+                click: () => onVehicleSelect(vehicle.id)
+              } : undefined}
+            >
+              <Popup>
+                <div>
+                  <p className="font-bold">{vehicle.plate_number}</p>
+                  <p>Status: {vehicle.status}</p>
+                </div>
+              </Popup>
+            </Marker>
+          );
+        })}
       </MapContainer>
     </div>
   );

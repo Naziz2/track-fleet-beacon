@@ -70,30 +70,38 @@ const DeveloperProfile = () => {
     
     try {
       const updates = {
-        id: user.id,
         first_name: firstName,
         last_name: lastName,
         cin: cin,
         phone: phone,
         company_name: companyName,
         address: address,
-        email: email,
+        email: email
       };
       
-      const { error } = await supabase.from('developers').update(updates).eq('id', user.id);
+      const { error } = await supabase
+        .from('developers')
+        .update(updates)
+        .eq('id', user.id);
       
       if (error) throw error;
       
-      setProfileData({
-        ...profileData!,
-        ...updates,
+      // Update local state
+      setProfileData(prev => {
+        if (!prev) return null;
+        return {
+          ...prev,
+          ...updates
+        };
       });
       
       toast.success("Profile updated successfully");
       setIsEditing(false);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error updating profile:", error);
-      toast.error("Failed to update profile");
+      toast.error("Failed to update profile", { 
+        description: error.message 
+      });
     }
   };
   

@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabase";
@@ -15,6 +14,7 @@ const AdminProfile = () => {
   const [profileData, setProfileData] = useState<Admin | null>(null);
   const [loading, setLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
+  const [updating, setUpdating] = useState(false);
   
   // Form state
   const [firstName, setFirstName] = useState("");
@@ -70,6 +70,7 @@ const AdminProfile = () => {
       return;
     }
     
+    setUpdating(true);
     try {
       const updates = {
         first_name: firstName,
@@ -98,18 +99,6 @@ const AdminProfile = () => {
         };
       });
       
-      // Update auth email if changed
-      if (email !== user.email) {
-        const { error: updateEmailError } = await supabase.auth.updateUser({
-          email: email
-        });
-        
-        if (updateEmailError) {
-          throw updateEmailError;
-        }
-        toast.success("Email update initiated. Please check your inbox.");
-      }
-      
       toast.success("Profile updated successfully");
       setIsEditing(false);
     } catch (error: any) {
@@ -117,6 +106,8 @@ const AdminProfile = () => {
       toast.error("Failed to update profile", {
         description: error.message
       });
+    } finally {
+      setUpdating(false);
     }
   };
   
@@ -239,8 +230,8 @@ const AdminProfile = () => {
                 <Button variant="outline" type="button" onClick={toggleEdit}>
                   Cancel
                 </Button>
-                <Button type="submit">
-                  Save Changes
+                <Button type="submit" disabled={updating}>
+                  {updating ? "Saving..." : "Save Changes"}
                 </Button>
               </div>
             </form>

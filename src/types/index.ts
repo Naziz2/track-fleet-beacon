@@ -90,6 +90,37 @@ export const mapAlert = (dbAlert: any): Alert => {
   };
 };
 
+export const mapDeveloper = (dbDeveloper: any): Developer => {
+  return {
+    id: dbDeveloper.id,
+    email: dbDeveloper.email || '',
+    first_name: dbDeveloper.first_name || '',
+    last_name: dbDeveloper.last_name || '',
+    cin: dbDeveloper.cin || '',
+    phone: dbDeveloper.phone || '',
+    company_name: dbDeveloper.company_name || '',
+    address: dbDeveloper.address || '',
+    created_at: dbDeveloper.created_at || new Date().toISOString(),
+    assigned_vehicle_ids: dbDeveloper.assigned_vehicle_ids || [],
+    assigned_user_ids: dbDeveloper.assigned_user_ids || [],
+    admin_uid: dbDeveloper.admin_uid || ''
+  };
+};
+
+export const mapUser = (dbUser: any): User => {
+  return {
+    id: dbUser.id,
+    first_name: dbUser.first_name || '',
+    last_name: dbUser.last_name || '',
+    cin: dbUser.cin || '',
+    phone: dbUser.phone || '',
+    company_name: dbUser.company_name || '',
+    address: dbUser.address || '',
+    vehicle_id: dbUser.vehicle_id,
+    admin_uid: dbUser.admin_uid || ''
+  };
+};
+
 // Helper function to parse location data from any format
 export const parseLocation = (location: any): Location => {
   if (typeof location === 'object' && location !== null) {
