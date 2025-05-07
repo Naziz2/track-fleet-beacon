@@ -1,8 +1,7 @@
-
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabase";
-import { Alert, Vehicle } from "@/types";
+import { Alert, Vehicle, mapAlert, mapVehicle } from "@/types";
 import { toast } from "sonner";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -61,12 +60,9 @@ const DeveloperAlerts = () => {
             
           if (vehicleError) throw vehicleError;
           
-          // Create a map of vehicles for easy lookup
-          const vehiclesMap: { [key: string]: Vehicle } = {};
-          (vehicleData || []).forEach(vehicle => {
-            vehiclesMap[vehicle.id] = vehicle;
-          });
-          setVehicles(vehiclesMap);
+          // Map the vehicles data using our helper function
+          const mappedVehicles = (vehicleData || []).map(mapVehicle);
+          setVehicles(mappedVehicles);
           
           // Fetch alerts for these vehicles
           const { data: alertData, error: alertError } = await supabase
@@ -77,8 +73,10 @@ const DeveloperAlerts = () => {
             
           if (alertError) throw alertError;
           
-          setAlerts(alertData || []);
-          setFilteredAlerts(alertData || []);
+          // Map the alerts data using our helper function
+          const mappedAlerts = (alertData || []).map(mapAlert);
+          setAlerts(mappedAlerts);
+          setFilteredAlerts(mappedAlerts);
         } else {
           setAlerts([]);
           setFilteredAlerts([]);

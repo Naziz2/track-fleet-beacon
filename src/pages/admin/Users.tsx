@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabase";
@@ -103,23 +104,23 @@ const AdminUsers = () => {
       .channel('users_changes')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'users' }, (payload) => {
         if (payload.eventType === 'UPDATE' || payload.eventType === 'INSERT') {
-          const user = payload.new as Customer;
-          if (user.admin_uid === user?.id) {
+          const userData = payload.new as Customer;
+          if (userData.admin_uid === user?.id) {
             setUsers(prev => {
-              const exists = prev.find(u => u.id === user.id);
+              const exists = prev.find(u => u.id === userData.id);
               if (exists) {
-                return prev.map(u => u.id === user.id ? user : u);
+                return prev.map(u => u.id === userData.id ? userData : u);
               } else {
-                return [...prev, user];
+                return [...prev, userData];
               }
             });
             setFilteredUsers(prev => {
-              const exists = prev.find(u => u.id === user.id);
+              const exists = prev.find(u => u.id === userData.id);
               if (exists) {
-                return prev.map(u => u.id === user.id ? user : u);
+                return prev.map(u => u.id === userData.id ? userData : u);
               } else {
                 if (searchTerm.trim() === '') {
-                  return [...prev, user];
+                  return [...prev, userData];
                 }
                 return prev;
               }

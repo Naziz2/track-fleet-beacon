@@ -4,7 +4,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabase";
 import { Developer } from "@/types";
 import { toast } from "sonner";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -22,7 +22,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
 import { Search, MoreHorizontal, Plus, Trash, Edit } from "lucide-react";
 import {
   Table,
@@ -44,9 +43,10 @@ const AdminDevelopers = () => {
   const [selectedDeveloper, setSelectedDeveloper] = useState<Developer | null>(null);
   
   // Form state
-  const [email, setEmail] = useState("");
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [cin, setCin] = useState("");
   const [phone, setPhone] = useState("");
   const [companyName, setCompanyName] = useState("");
@@ -59,16 +59,15 @@ const AdminDevelopers = () => {
       
       setLoading(true);
       try {
-        // Fetch developers managed by this admin
-        const { data: developerData, error: developerError } = await supabase
+        const { data, error } = await supabase
           .from('developers')
           .select('*')
           .eq('admin_uid', user.id);
           
-        if (developerError) throw developerError;
+        if (error) throw error;
         
-        setDevelopers(developerData || []);
-        setFilteredDevelopers(developerData || []);
+        setDevelopers(data || []);
+        setFilteredDevelopers(data || []);
       } catch (error) {
         console.error("Error fetching developers:", error);
         toast.error("Failed to load developers");
@@ -83,20 +82,27 @@ const AdminDevelopers = () => {
     const developersSubscription = supabase
       .channel('developers_changes')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'developers' }, (payload) => {
-        if (payload.eventType === 'UPDATE' || payload.eventType === 'INSERT') {
+        if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
           const developer = payload.new as Developer;
           if (developer.admin_uid === user?.id) {
-            fetchDevelopers();
+            setDevelopers(prev => {
+              const exists = prev.find(d => d.id === developer.id);
+              if (exists) {
+                return prev.map(d => d.id === developer.id ? developer : d);
+              } else {
+                return [...prev, developer];
+              }
+            });
           }
         } else if (payload.eventType === 'DELETE') {
-          const deletedDeveloper = payload.old as Developer;
-          setDevelopers(prev => prev.filter(d => d.id !== deletedDeveloper.id));
-          setFilteredDevelopers(prev => prev.filter(d => d.id !== deletedDeveloper.id));
+          const deletedDev = payload.old as Developer;
+          setDevelopers(prev => prev.filter(d => d.id !== deletedDev.id));
+          setFilteredDevelopers(prev => prev.filter(d => d.id !== deletedDev.id));
         }
       })
       .subscribe();
-      
-    // Cleanup subscription
+    
+    // Cleanup
     return () => {
       developersSubscription.unsubscribe();
     };
@@ -112,7 +118,7 @@ const AdminDevelopers = () => {
         developers.filter((developer) => 
           developer.first_name.toLowerCase().includes(lowerCaseSearch) ||
           developer.last_name.toLowerCase().includes(lowerCaseSearch) ||
-          developer.email?.toLowerCase().includes(lowerCaseSearch) ||
+          developer.email.toLowerCase().includes(lowerCaseSearch) ||
           developer.company_name.toLowerCase().includes(lowerCaseSearch)
         )
       );
@@ -122,28 +128,26 @@ const AdminDevelopers = () => {
   // Set form values when editing
   useEffect(() => {
     if (isEditing && selectedDeveloper) {
-      setEmail(selectedDeveloper.email || '');
       setFirstName(selectedDeveloper.first_name);
       setLastName(selectedDeveloper.last_name);
+      setEmail(selectedDeveloper.email);
+      setPassword(""); // Don't populate password for security
       setCin(selectedDeveloper.cin);
       setPhone(selectedDeveloper.phone);
       setCompanyName(selectedDeveloper.company_name);
       setAddress(selectedDeveloper.address);
     } else {
-      resetForm();
+      // Reset form for new developer
+      setFirstName("");
+      setLastName("");
+      setEmail("");
+      setPassword("");
+      setCin("");
+      setPhone("");
+      setCompanyName("");
+      setAddress("");
     }
   }, [isEditing, selectedDeveloper]);
-  
-  // Reset the form
-  const resetForm = () => {
-    setEmail("");
-    setFirstName("");
-    setLastName("");
-    setCin("");
-    setPhone("");
-    setCompanyName("");
-    setAddress("");
-  };
   
   // Dialog open/close handlers
   const handleOpenDialog = (developer?: Developer) => {
@@ -153,7 +157,15 @@ const AdminDevelopers = () => {
     } else {
       setSelectedDeveloper(null);
       setIsEditing(false);
-      resetForm();
+      // Reset form
+      setFirstName("");
+      setLastName("");
+      setEmail("");
+      setPassword("");
+      setCin("");
+      setPhone("");
+      setCompanyName("");
+      setAddress("");
     }
     setDialogOpen(true);
   };
@@ -170,69 +182,73 @@ const AdminDevelopers = () => {
     try {
       if (isEditing && selectedDeveloper) {
         // Update existing developer
+        const updates = {
+          first_name: firstName,
+          last_name: lastName,
+          email: email, // Note: This won't update the auth email
+          cin: cin,
+          phone: phone,
+          company_name: companyName,
+          address: address,
+        };
+        
         const { error } = await supabase
           .from('developers')
-          .update({
-            first_name: firstName,
-            last_name: lastName,
-            cin: cin,
-            phone: phone,
-            company_name: companyName,
-            address: address,
-          })
+          .update(updates)
           .eq('id', selectedDeveloper.id);
           
         if (error) throw error;
         
         toast.success("Developer updated successfully");
       } else {
-        // Create user in auth and then create developer record
-        const tempPassword = Math.random().toString(36).slice(-8);
+        // Create new developer account directly
         
-        // First create the user in auth
-        const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+        // 1. Create auth user account
+        const { data: authData, error: authError } = await supabase.auth.signUp({
           email: email,
-          password: tempPassword,
-          email_confirm: true
+          password: password,
+          options: {
+            data: {
+              first_name: firstName,
+              last_name: lastName,
+              role: 'developer'
+            }
+          }
         });
         
         if (authError) throw authError;
         
-        if (authData?.user) {
-          // Then create the developer record
-          const { error: devError } = await supabase
-            .from('developers')
-            .insert({
-              id: authData.user.id,
-              email: email,
-              first_name: firstName,
-              last_name: lastName,
-              cin: cin,
-              phone: phone,
-              company_name: companyName,
-              address: address,
-              admin_uid: user.id,
-              assigned_vehicle_ids: [],
-              assigned_user_ids: []
-            });
-            
-          if (devError) {
-            // If developer creation fails, we should delete the auth user
-            await supabase.auth.admin.deleteUser(authData.user.id);
-            throw devError;
-          }
-          
-          toast.success("Developer created successfully", {
-            description: `Temporary password: ${tempPassword}`
-          });
+        if (!authData.user) {
+          throw new Error("Failed to create user account");
         }
+        
+        // 2. Create developer record
+        const { error: devError } = await supabase
+          .from('developers')
+          .insert({
+            id: authData.user.id,
+            first_name: firstName,
+            last_name: lastName,
+            email: email,
+            cin: cin,
+            phone: phone,
+            company_name: companyName,
+            address: address,
+            admin_uid: user.id,
+            assigned_vehicle_ids: [],
+            assigned_user_ids: []
+          });
+        
+        if (devError) throw devError;
+        
+        toast.success("Developer account created successfully");
       }
       
       setDialogOpen(false);
     } catch (error: any) {
       console.error("Error saving developer:", error);
-      toast.error("Failed to save developer", {
-        description: error.message
+      toast.error("Failed to save developer", { 
+        description: error.message 
       });
     }
   };
@@ -244,13 +260,15 @@ const AdminDevelopers = () => {
     }
     
     try {
-      // Delete the developer
+      // Delete the developer record
       const { error } = await supabase
         .from('developers')
         .delete()
         .eq('id', developerId);
         
       if (error) throw error;
+      
+      // Note: This doesn't delete the auth user
       
       toast.success("Developer deleted successfully");
     } catch (error) {

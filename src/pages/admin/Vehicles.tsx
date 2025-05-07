@@ -1,8 +1,7 @@
-
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabase";
-import { Vehicle, Developer } from "@/types";
+import { Vehicle, mapVehicle } from "@/types";
 import { toast } from "sonner";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -69,40 +68,31 @@ const AdminVehicles = () => {
   
   // Fetch vehicles and developers
   useEffect(() => {
-    const fetchData = async () => {
+    const fetchVehicles = async () => {
       if (!user) return;
       
       setLoading(true);
       try {
-        // Fetch vehicles owned by this admin
-        const { data: vehicleData, error: vehicleError } = await supabase
+        const { data, error } = await supabase
           .from('vehicles')
           .select('*')
           .eq('admin_uid', user.id);
           
-        if (vehicleError) throw vehicleError;
+        if (error) throw error;
         
-        setVehicles(vehicleData || []);
-        setFilteredVehicles(vehicleData || []);
-        
-        // Fetch developers managed by this admin
-        const { data: developerData, error: developerError } = await supabase
-          .from('developers')
-          .select('*')
-          .eq('admin_uid', user.id);
-          
-        if (developerError) throw developerError;
-        
-        setDevelopers(developerData || []);
+        // Convert supabase data to our Vehicle type using the mapVehicle helper
+        const mappedData = (data || []).map(mapVehicle);
+        setVehicles(mappedData);
+        setFilteredVehicles(mappedData);
       } catch (error) {
-        console.error("Error fetching data:", error);
-        toast.error("Failed to load vehicles and developers");
+        console.error("Error fetching vehicles:", error);
+        toast.error("Failed to load vehicles");
       } finally {
         setLoading(false);
       }
     };
     
-    fetchData();
+    fetchVehicles();
     
     // Set up subscription for real-time updates
     const vehiclesSubscription = supabase

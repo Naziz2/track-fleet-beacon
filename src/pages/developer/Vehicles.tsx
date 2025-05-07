@@ -1,16 +1,14 @@
-
 import { useState, useEffect } from "react";
-import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
-import { Vehicle } from "@/types";
+import { supabase } from "@/lib/supabase";
+import { Vehicle, mapVehicle } from "@/types";
+import { toast } from "sonner";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Search } from "lucide-react";
-import VehicleMap from "@/components/VehicleMap";
-import { toast } from "sonner";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Search, Map as MapIcon } from "lucide-react";
+import { VehicleMap } from "@/components/VehicleMap";
 import {
   Table,
   TableBody,

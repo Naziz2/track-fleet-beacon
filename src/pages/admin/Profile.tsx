@@ -72,7 +72,6 @@ const AdminProfile = () => {
     
     try {
       const updates = {
-        id: user.id,
         first_name: firstName,
         last_name: lastName,
         cin: cin,
@@ -90,12 +89,16 @@ const AdminProfile = () => {
       
       if (error) throw error;
       
-      setProfileData({
-        ...profileData!,
-        ...updates,
-      } as Admin);
+      // Update local state with the new profile data
+      setProfileData(prev => {
+        if (!prev) return null;
+        return {
+          ...prev,
+          ...updates
+        };
+      });
       
-      // Also update auth email if changed
+      // Update auth email if changed
       if (email !== user.email) {
         const { error: updateEmailError } = await supabase.auth.updateUser({
           email: email
@@ -104,6 +107,7 @@ const AdminProfile = () => {
         if (updateEmailError) {
           throw updateEmailError;
         }
+        toast.success("Email update initiated. Please check your inbox.");
       }
       
       toast.success("Profile updated successfully");

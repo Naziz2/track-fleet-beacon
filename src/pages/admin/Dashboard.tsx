@@ -1,276 +1,227 @@
-
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { useEffect, useState } from "react";
-import { supabase } from "@/lib/supabase";
-import { Vehicle, Developer, Customer } from "@/types";
-import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { Button } from "@/components/ui/button";
-import { ArrowRight } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/lib/supabase"; 
+import { Vehicle, Alert, mapVehicle, mapAlert } from "@/types";
+import { toast } from "sonner";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { VehicleMap } from "@/components/VehicleMap";
+import { Badge } from "@/components/ui/badge";
+import { Car, AlertTriangle } from "lucide-react";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
 const AdminDashboard = () => {
-  const [vehicleCount, setVehicleCount] = useState<number>(0);
-  const [developerCount, setDeveloperCount] = useState<number>(0);
-  const [userCount, setUserCount] = useState<number>(0);
-  const [activeVehicles, setActiveVehicles] = useState<number>(0);
-  const [recentVehicles, setRecentVehicles] = useState<Vehicle[]>([]);
-  const [activityData, setActivityData] = useState<{name: string, vehicles: number}[]>([]);
-  const navigate = useNavigate();
-
+  const { user } = useAuth();
+  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+  const [alerts, setAlerts] = useState<Alert[]>([]);
+  const [loading, setLoading] = useState(true);
+  
   useEffect(() => {
-    const fetchDashboardData = async () => {
+    const fetchData = async () => {
+      if (!user) return;
+      
+      setLoading(true);
       try {
-        // Fetch counts
-        const { data: vehicles, error: vehiclesError } = await supabase
+        // Fetch vehicles managed by this admin
+        const { data: vehicleData, error: vehicleError } = await supabase
           .from('vehicles')
-          .select('*');
+          .select('*')
+          .eq('admin_uid', user.id);
+          
+        if (vehicleError) throw vehicleError;
         
-        const { data: developers, error: developersError } = await supabase
-          .from('developers')
-          .select('*');
+        // Map the vehicles data using our helper function
+        const mappedVehicles = (vehicleData || []).map(mapVehicle);
+        setVehicles(mappedVehicles);
         
-        const { data: users, error: usersError } = await supabase
-          .from('users')
-          .select('*');
+        // Fetch alerts for vehicles managed by this admin
+        const { data: alertData, error: alertError } = await supabase
+          .from('alerts')
+          .select('*')
+          .in('vehicle_id', mappedVehicles.map(v => v.id));
+          
+        if (alertError) throw alertError;
         
-        if (vehiclesError) throw vehiclesError;
-        if (developersError) throw developersError;
-        if (usersError) throw usersError;
-        
-        // Set counts
-        setVehicleCount(vehicles?.length || 0);
-        setDeveloperCount(developers?.length || 0);
-        setUserCount(users?.length || 0);
-        
-        // Active vehicles
-        const active = vehicles?.filter(v => v.status === 'active').length || 0;
-        setActiveVehicles(active);
-        
-        // Recent vehicles
-        const recent = vehicles?.slice(0, 5) || [];
-        setRecentVehicles(recent as Vehicle[]);
-        
-        // Mock activity data (in a real app, this would come from the database)
-        const mockActivity = [
-          { name: 'Mon', vehicles: 4 },
-          { name: 'Tue', vehicles: 6 },
-          { name: 'Wed', vehicles: 8 },
-          { name: 'Thu', vehicles: 7 },
-          { name: 'Fri', vehicles: 9 },
-          { name: 'Sat', vehicles: 5 },
-          { name: 'Sun', vehicles: 3 },
-        ];
-        setActivityData(mockActivity);
+        // Map the alerts data using our helper function
+        const mappedAlerts = (alertData || []).map(mapAlert);
+        setAlerts(mappedAlerts);
         
       } catch (error) {
-        console.error("Error fetching dashboard data:", error);
+        console.error("Error fetching data:", error);
+        toast.error("Failed to load data");
+      } finally {
+        setLoading(false);
       }
     };
     
-    fetchDashboardData();
-  }, []);
+    fetchData();
+    
+    // Set up subscription for real-time updates on vehicles
+    const vehiclesSubscription = supabase
+      .channel('vehicles_changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'vehicles' }, (payload) => {
+        if (payload.eventType === 'UPDATE' || payload.eventType === 'INSERT') {
+          const vehicle = mapVehicle(payload.new);
+          setVehicles(prev => {
+            const exists = prev.find(v => v.id === vehicle.id);
+            if (exists) {
+              return prev.map(v => v.id === vehicle.id ? vehicle : v);
+            } else {
+              return [...prev, vehicle];
+            }
+          });
+        }
+      })
+      .subscribe();
+      
+    // Set up subscription for real-time updates on alerts
+    const alertsSubscription = supabase
+      .channel('alerts_changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'alerts' }, (payload) => {
+        if (payload.eventType === 'INSERT') {
+          const alert = mapAlert(payload.new);
+          setAlerts(prev => [...prev, alert]);
+        }
+      })
+      .subscribe();
+    
+    // Cleanup subscriptions
+    return () => {
+      vehiclesSubscription.unsubscribe();
+      alertsSubscription.unsubscribe();
+    };
+  }, [user]);
+
+  if (loading) {
+    return (
+      <div className="flex h-full items-center justify-center p-8">
+        <div className="text-center">
+          <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full mx-auto mb-4"></div>
+          <p>Loading dashboard...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold tracking-tight">Admin Dashboard</h1>
-        <div className="text-sm text-muted-foreground">
-          Welcome back to your dashboard
-        </div>
+        <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
       </div>
-
-      {/* Stats cards */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Total Vehicles</CardTitle>
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth="2"
-              className="h-4 w-4 text-muted-foreground"
-            >
-              <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
-              <circle cx="9" cy="7" r="4" />
-              <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
-              <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-            </svg>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{vehicleCount}</div>
-            <p className="text-xs text-muted-foreground">
-              {activeVehicles} currently active
-            </p>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Developers</CardTitle>
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth="2"
-              className="h-4 w-4 text-muted-foreground"
-            >
-              <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
-            </svg>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{developerCount}</div>
-            <p className="text-xs text-muted-foreground">
-              Monitoring your fleet
-            </p>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Users</CardTitle>
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth="2"
-              className="h-4 w-4 text-muted-foreground"
-            >
-              <rect width="20" height="14" x="2" y="5" rx="2" />
-              <path d="M2 10h20" />
-            </svg>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{userCount}</div>
-            <p className="text-xs text-muted-foreground">
-              Vehicle owners and operators
-            </p>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Active Sessions</CardTitle>
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth="2"
-              className="h-4 w-4 text-muted-foreground"
-            >
-              <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
-            </svg>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">+573</div>
-            <p className="text-xs text-muted-foreground">
-              +201 since last hour
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Charts and tables */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
-        <Card className="lg:col-span-4">
           <CardHeader>
-            <CardTitle>Vehicle Activity</CardTitle>
-          </CardHeader>
-          <CardContent className="pl-2">
-            <ResponsiveContainer width="100%" height={350}>
-              <AreaChart data={activityData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis 
-                  dataKey="name" 
-                  stroke="#888888"
-                  fontSize={12} 
-                  tickLine={false}
-                  axisLine={false}
-                />
-                <YAxis
-                  stroke="#888888"
-                  fontSize={12}
-                  tickLine={false}
-                  axisLine={false}
-                  tickFormatter={(value) => `${value}`}
-                />
-                <Tooltip />
-                <Area
-                  type="monotone"
-                  dataKey="vehicles"
-                  stroke="#3B82F6"
-                  fill="#3B82F6"
-                  fillOpacity={0.2}
-                />
-              </AreaChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-        
-        <Card className="lg:col-span-3">
-          <CardHeader className="flex flex-row items-center">
-            <div className="grid gap-2">
-              <CardTitle>Recent Vehicles</CardTitle>
-              <p className="text-xs text-muted-foreground">
-                {recentVehicles.length} vehicles recently added or updated
-              </p>
-            </div>
-            <Button 
-              variant="outline" 
-              size="sm" 
-              className="ml-auto"
-              onClick={() => navigate('/admin/vehicles')}
-            >
-              View All
-              <ArrowRight className="ml-2 h-4 w-4" />
-            </Button>
+            <CardTitle>Vehicles Overview</CardTitle>
+            <CardDescription>
+              Summary of your fleet status
+            </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              {recentVehicles.length > 0 ? (
-                recentVehicles.map((vehicle) => (
-                  <div
-                    key={vehicle.id}
-                    className="flex items-center justify-between border-b border-muted pb-4 last:border-0 last:pb-0"
-                  >
-                    <div className="space-y-1">
-                      <p className="text-sm font-medium leading-none">
-                        {vehicle.plate_number}
-                      </p>
-                      <p className="text-sm text-muted-foreground">
-                        {vehicle.status}
-                      </p>
-                    </div>
-                    <div className={`text-sm ${
-                      vehicle.status === 'active' ? 'text-green-500' : 
-                      vehicle.status === 'maintenance' ? 'text-amber-500' : 'text-red-500'
-                    }`}>
-                      {vehicle.status === 'active' ? '● Active' : 
-                       vehicle.status === 'maintenance' ? '● Maintenance' : '● Inactive'}
+            {vehicles.length === 0 ? (
+              <div className="text-center py-4">
+                <p className="text-muted-foreground">No vehicles found.</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {vehicles.map((vehicle) => (
+                  <div key={vehicle.id} className="space-y-2">
+                    <h3 className="text-lg font-semibold">{vehicle.plate_number}</h3>
+                    <VehicleMap vehicle={vehicle} />
+                    <div className="flex justify-between items-center">
+                      <Badge variant="secondary">{vehicle.status}</Badge>
                     </div>
                   </div>
-                ))
-              ) : (
-                <div className="text-center py-4 text-muted-foreground">
-                  No vehicles found
-                </div>
-              )}
-            </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardHeader>
+            <CardTitle>Recent Alerts</CardTitle>
+            <CardDescription>
+              Latest alerts from your vehicles
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {alerts.length === 0 ? (
+              <div className="text-center py-4">
+                <p className="text-muted-foreground">No recent alerts.</p>
+              </div>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Vehicle</TableHead>
+                    <TableHead>Type</TableHead>
+                    <TableHead>Description</TableHead>
+                    <TableHead>Timestamp</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {alerts.map((alert) => {
+                    const vehicle = vehicles.find(v => v.id === alert.vehicle_id);
+                    return (
+                      <TableRow key={alert.id}>
+                        <TableCell className="font-medium">
+                          {vehicle ? vehicle.plate_number : "Unknown"}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="destructive" className="gap-1.5">
+                            <AlertTriangle className="h-3 w-3" />
+                            {alert.type}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>{alert.description}</TableCell>
+                        <TableCell>
+                          {new Date(alert.timestamp).toLocaleString()}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            )}
           </CardContent>
         </Card>
       </div>
+      
+      <Card>
+        <CardHeader>
+          <CardTitle>Fleet Summary</CardTitle>
+          <CardDescription>
+            Overview of your entire vehicle fleet
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="p-4 rounded-md bg-muted">
+              <div className="font-medium">Total Vehicles</div>
+              <div className="text-2xl font-bold">{vehicles.length}</div>
+            </div>
+            <div className="p-4 rounded-md bg-muted">
+              <div className="font-medium">Active Vehicles</div>
+              <div className="text-2xl font-bold">
+                {vehicles.filter((vehicle) => vehicle.status === 'active').length}
+              </div>
+            </div>
+            <div className="p-4 rounded-md bg-muted">
+              <div className="font-medium">Inactive Vehicles</div>
+              <div className="text-2xl font-bold">
+                {vehicles.filter((vehicle) => vehicle.status === 'inactive').length}
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 };

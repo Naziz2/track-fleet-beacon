@@ -1,8 +1,9 @@
-import { useEffect, useState } from "react";
+
+import { useEffect } from "react";
 import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
-import { Vehicle, Location } from "@/types";
+import { Vehicle, Location, parseLocation } from "@/types";
 
 // Fix default marker icon issue in Leaflet
 import iconRetinaUrl from 'leaflet/dist/images/marker-icon-2x.png';
@@ -50,39 +51,6 @@ function MapView({ center }: { center: [number, number] }) {
 
   return null;
 }
-
-// Extend the Location type to handle either direct or JSON format
-const parseLocation = (location: any): Location => {
-  // If it's already a Location object
-  if (typeof location === 'object' && 'lat' in location && 'lng' in location) {
-    return location as Location;
-  }
-  
-  // If it's a JSON structure, parse it
-  try {
-    if (typeof location === 'object') {
-      return {
-        lat: Number(location.lat),
-        lng: Number(location.lng),
-        timestamp: location.timestamp
-      };
-    }
-    // If it's a string, try to parse it
-    else if (typeof location === 'string') {
-      const parsed = JSON.parse(location);
-      return {
-        lat: Number(parsed.lat),
-        lng: Number(parsed.lng),
-        timestamp: parsed.timestamp
-      };
-    }
-  } catch (e) {
-    console.error("Failed to parse location:", e);
-  }
-  
-  // Fallback to default location
-  return { lat: 0, lng: 0 };
-};
 
 interface VehicleMapProps {
   vehicle: Vehicle;
