@@ -214,7 +214,7 @@ const AdminUsers = () => {
         phone: phone,
         company_name: companyName,
         address: address,
-        vehicle_id: vehicleId,
+        vehicle_id: vehicleId === "none" ? null : vehicleId,
         admin_uid: user.id
       };
       
@@ -229,24 +229,25 @@ const AdminUsers = () => {
         
         toast.success("User updated successfully");
       } else {
-        // Create new user with a UUID
-        const { data: idData } = await supabase.rpc('generate_uuid');
-        const newId = idData as string;
+        // Create new user with UUID
+        // Generate a UUID directly
+        const newId = crypto.randomUUID();
         
         // Create new user with the generated UUID
-        const { data, error } = await supabase
+        const { error } = await supabase
           .from('users')
           .insert({
             id: newId,
             ...userData
-          })
-          .select();
+          });
           
         if (error) throw error;
         
-        if (data && data[0]) {
-          toast.success("User added successfully");
-        }
+        toast.success("User added successfully");
+        
+        // Update local state
+        const newUser = { id: newId, ...userData };
+        setUsers(prev => [...prev, newUser as Customer]);
       }
       
       setDialogOpen(false);
@@ -492,8 +493,8 @@ const AdminUsers = () => {
                   Vehicle
                 </Label>
                 <Select 
-                  value={vehicleId || undefined} 
-                  onValueChange={(value) => setVehicleId(value || null)}
+                  value={vehicleId || "none"} 
+                  onValueChange={(value) => setVehicleId(value === "none" ? null : value)}
                 >
                   <SelectTrigger className="col-span-3">
                     <SelectValue placeholder="Select a vehicle (optional)" />

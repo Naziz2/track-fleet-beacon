@@ -244,7 +244,7 @@ const DeveloperUsers = () => {
         phone: phone,
         company_name: companyName,
         address: address,
-        vehicle_id: vehicleId,
+        vehicle_id: vehicleId === "none" ? null : vehicleId,
         admin_uid: developerData.admin_uid
       };
       
@@ -278,19 +278,23 @@ const DeveloperUsers = () => {
         if (error) throw error;
         
         // Update the developer's assigned_user_ids
-        const { error: updateError } = await supabase
-          .from('developers')
-          .update({
-            assigned_user_ids: supabase.rpc('array_append', { arr: developerData.assigned_user_ids || [], item: userId })
-          })
-          .eq('id', user.id);
-          
-        if (updateError) throw updateError;
+        if (developerData && Array.isArray(developerData.assigned_user_ids)) {
+          const { error: updateError } = await supabase
+            .from('developers')
+            .update({
+              assigned_user_ids: [...developerData.assigned_user_ids, userId]
+            })
+            .eq('id', user.id);
+            
+          if (updateError) throw updateError;
+        }
         
         toast.success("User created successfully");
         
         // Update local state
-        setUsers(prev => [...prev, newUser as User]);
+        const typedNewUser = newUser as User;
+        setUsers(prev => [...prev, typedNewUser]);
+        setFilteredUsers(prev => [...prev, typedNewUser]);
       }
       
       setDialogOpen(false);
@@ -487,14 +491,14 @@ const DeveloperUsers = () => {
               <div className="space-y-2">
                 <Label htmlFor="vehicle">Assign Vehicle</Label>
                 <Select 
-                  value={vehicleId || ""} 
-                  onValueChange={(value) => setVehicleId(value || null)}
+                  value={vehicleId || "none"} 
+                  onValueChange={(value) => setVehicleId(value === "none" ? null : value)}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Select a vehicle (optional)" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">None</SelectItem>
+                    <SelectItem value="none">None</SelectItem>
                     {vehicles.map((vehicle) => (
                       <SelectItem key={vehicle.id} value={vehicle.id}>
                         {vehicle.plate_number} ({vehicle.status})
