@@ -79,8 +79,7 @@ const AdminProfile = () => {
         phone: phone,
         company_name: companyName,
         address: address,
-        email: email,
-        updated_at: new Date().toISOString(),
+        email: email
       };
       
       const { error } = await supabase
