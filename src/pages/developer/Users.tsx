@@ -102,7 +102,18 @@ const DeveloperUsers = () => {
             if (vehicleError) throw vehicleError;
             
             if (vehicleData) {
-              setVehicles(vehicleData.map(mapVehicle));
+              setVehicles(vehicleData.map(v => ({
+                id: v.id,
+                plate_number: v.plate_number,
+                status: v.status as 'active' | 'inactive' | 'maintenance',
+                current_location: typeof v.current_location === 'string' 
+                  ? JSON.parse(v.current_location) 
+                  : v.current_location,
+                history: Array.isArray(v.history) 
+                  ? v.history.map(loc => typeof loc === 'string' ? JSON.parse(loc) : loc) 
+                  : [],
+                admin_uid: v.admin_uid
+              })));
             }
           }
         } else {
@@ -267,19 +278,11 @@ const DeveloperUsers = () => {
         if (error) throw error;
         
         // Update the developer's assigned_user_ids
-        const { data: devData, error: devError } = await supabase
-          .from('developers')
-          .select('assigned_user_ids')
-          .eq('id', user.id)
-          .single();
-        
-        if (devError) throw devError;
-            
-        if (devData) {
+        if (developerData && Array.isArray(developerData.assigned_user_ids)) {
           const { error: updateError } = await supabase
             .from('developers')
             .update({
-              assigned_user_ids: [...(devData.assigned_user_ids || []), userId]
+              assigned_user_ids: [...developerData.assigned_user_ids, userId]
             })
             .eq('id', user.id);
             
@@ -498,7 +501,7 @@ const DeveloperUsers = () => {
                     <SelectItem value="none">None</SelectItem>
                     {vehicles.map((vehicle) => (
                       <SelectItem key={vehicle.id} value={vehicle.id}>
-                        {vehicle.plate_number} ({vehicle.model || ""}) - {vehicle.status}
+                        {vehicle.plate_number} ({vehicle.status})
                       </SelectItem>
                     ))}
                   </SelectContent>

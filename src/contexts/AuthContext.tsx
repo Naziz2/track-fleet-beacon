@@ -1,157 +1,149 @@
 
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react'
-import { Session, User } from '@supabase/supabase-js'
-import { supabase } from '@/lib/supabase'
-import { useNavigate } from 'react-router-dom'
-import { toast } from "sonner"
+import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import { Session, User } from '@supabase/supabase-js';
+import { supabase } from '@/lib/supabase';
+import { UserRole } from '@/types';
 
-interface AuthContextType {
-  user: User | null
-  session: Session | null
-  signIn: (email: string, password: string) => Promise<void>
-  signUp: (email: string, password: string) => Promise<void>
-  signOut: () => Promise<void>
-  loading: boolean
-  changePassword: (newPassword: string) => Promise<void>
-  resetPassword: (email: string) => Promise<void>
+interface AuthContextProps {
+  session: Session | null;
+  user: User | null;
+  userRole: UserRole;
+  isLoading: boolean;
+  signIn: (email: string, password: string) => Promise<{ error: any }>;
+  signUp: (email: string, password: string) => Promise<{ error: any; data: any }>;
+  signOut: () => Promise<void>;
 }
 
-const AuthContext = createContext<AuthContextType>({
-  user: null,
-  session: null,
-  signIn: async () => {},
-  signUp: async () => {},
-  signOut: async () => {},
-  loading: true,
-  changePassword: async () => {},
-  resetPassword: async () => {}
-})
+const AuthContext = createContext<AuthContextProps | undefined>(undefined);
 
-export const AuthProvider = ({ children }: { children: ReactNode }) => {
-  const [user, setUser] = useState<User | null>(null)
-  const [session, setSession] = useState<Session | null>(null)
-  const [loading, setLoading] = useState(true)
-  const navigate = useNavigate()
+export function AuthProvider({ children }: { children: ReactNode }) {
+  const [session, setSession] = useState<Session | null>(null);
+  const [user, setUser] = useState<User | null>(null);
+  const [userRole, setUserRole] = useState<UserRole>('unassigned');
+  const [isLoading, setIsLoading] = useState(true);
 
+  // Check for active session on mount
   useEffect(() => {
-    // Get initial session
-    const getInitialSession = async () => {
-      setLoading(true)
-      try {
-        // Set up auth state listener
-        const { data: { subscription } } = supabase.auth.onAuthStateChange(
-          (_event, session) => {
-            setSession(session)
-            setUser(session?.user ?? null)
-          }
-        )
-
-        // Get initial session
-        const { data: { session } } = await supabase.auth.getSession()
-        setSession(session)
-        setUser(session?.user ?? null)
-
-        return () => {
-          subscription.unsubscribe()
-        }
-      } catch (error) {
-        console.error('Error getting initial session:', error)
-      } finally {
-        setLoading(false)
+    async function getInitialSession() {
+      setIsLoading(true);
+      
+      // Get session
+      const { data: { session: activeSession } } = await supabase.auth.getSession();
+      setSession(activeSession);
+      setUser(activeSession?.user ?? null);
+      
+      if (activeSession?.user) {
+        await determineUserRole(activeSession.user.id);
       }
+      
+      setIsLoading(false);
+
+      // Listen for auth changes
+      const { data: { subscription } } = await supabase.auth.onAuthStateChange(
+        async (_event, newSession) => {
+          setSession(newSession);
+          setUser(newSession?.user ?? null);
+          
+          if (newSession?.user) {
+            await determineUserRole(newSession.user.id);
+          } else {
+            setUserRole('unassigned');
+          }
+        }
+      );
+
+      return () => {
+        subscription.unsubscribe();
+      };
     }
 
-    getInitialSession()
-  }, [])
+    getInitialSession();
+  }, []);
+
+  // Determine the user's role based on their ID
+  async function determineUserRole(userId: string) {
+    try {
+      // Check admin table
+      const { data: adminData } = await supabase
+        .from('admins')
+        .select()
+        .eq('id', userId)
+        .single();
+      
+      if (adminData) {
+        setUserRole('admin');
+        return;
+      }
+
+      // Check developer table
+      const { data: developerData } = await supabase
+        .from('developers')
+        .select()
+        .eq('id', userId)
+        .single();
+      
+      if (developerData) {
+        setUserRole('developer');
+        return;
+      }
+
+      // Default role
+      setUserRole('unassigned');
+    } catch (error) {
+      console.error("Error determining user role:", error);
+      setUserRole('unassigned');
+    }
+  }
 
   const signIn = async (email: string, password: string) => {
-    try {
-      const { error } = await supabase.auth.signInWithPassword({ email, password })
-      if (error) throw error
-    } catch (error: any) {
-      console.error('Error signing in:', error)
-      toast.error('Sign in failed', {
-        description: error.message
-      })
-      throw error
-    }
-  }
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    return { error };
+  };
 
   const signUp = async (email: string, password: string) => {
-    try {
-      const { error } = await supabase.auth.signUp({ email, password })
-      if (error) throw error
-      toast.success('Sign up successful', {
-        description: 'Please check your email for the confirmation link.'
-      })
-    } catch (error: any) {
-      console.error('Error signing up:', error)
-      toast.error('Sign up failed', {
-        description: error.message
-      })
-      throw error
+    // Add emailRedirectTo with the current URL to redirect after signup
+    // Added autoConfirm: true option to skip email confirmation
+    const { data, error } = await supabase.auth.signUp({ 
+      email, 
+      password,
+      options: {
+        emailRedirectTo: window.location.origin,
+        data: {
+          email_confirmed: true // This adds a user metadata flag
+        }
+      }
+    });
+    
+    // If signup is successful, immediately sign in the user
+    if (data.user && !error) {
+      await supabase.auth.signInWithPassword({ email, password });
     }
-  }
+    
+    return { data, error };
+  };
 
   const signOut = async () => {
-    try {
-      const { error } = await supabase.auth.signOut()
-      if (error) throw error
-      navigate('/auth')
-    } catch (error: any) {
-      console.error('Error signing out:', error)
-      toast.error('Sign out failed', {
-        description: error.message
-      })
-    }
-  }
-
-  const changePassword = async (newPassword: string) => {
-    try {
-      const { error } = await supabase.auth.updateUser({ password: newPassword })
-      if (error) throw error
-      toast.success('Password updated successfully')
-    } catch (error: any) {
-      console.error('Error changing password:', error)
-      toast.error('Password change failed', {
-        description: error.message
-      })
-      throw error
-    }
-  }
-
-  const resetPassword = async (email: string) => {
-    try {
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: window.location.origin + '/auth/reset-password',
-      })
-      if (error) throw error
-      toast.success('Password reset email sent', {
-        description: 'Please check your email for the reset link.'
-      })
-    } catch (error: any) {
-      console.error('Error resetting password:', error)
-      toast.error('Password reset failed', {
-        description: error.message
-      })
-      throw error
-    }
-  }
+    await supabase.auth.signOut();
+    setUserRole('unassigned');
+  };
 
   const value = {
-    user,
     session,
+    user,
+    userRole,
+    isLoading,
     signIn,
     signUp,
     signOut,
-    loading,
-    changePassword,
-    resetPassword
-  }
+  };
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
 export const useAuth = () => {
-  return useContext(AuthContext)
-}
+  const context = useContext(AuthContext);
+  if (!context) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
+  return context;
+};
