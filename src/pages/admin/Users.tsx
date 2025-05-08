@@ -499,7 +499,7 @@ const AdminUsers = () => {
                     <SelectValue placeholder="Select a vehicle (optional)" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">None</SelectItem>
+                    <SelectItem value="none">None</SelectItem>
                     {availableVehicles.map((vehicle) => (
                       <SelectItem key={vehicle.id} value={vehicle.id}>
                         {vehicle.plate_number}
