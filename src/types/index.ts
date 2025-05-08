@@ -12,6 +12,8 @@ export interface Location {
 export interface Vehicle {
   id: string;
   plate_number: string;
+  model?: string; 
+  vehicle_type?: string;
   status: 'active' | 'inactive' | 'maintenance';
   current_location: Location;
   history: Location[];
@@ -73,6 +75,8 @@ export const mapVehicle = (dbVehicle: any): Vehicle => {
   return {
     id: dbVehicle.id,
     plate_number: dbVehicle.plate_number,
+    model: dbVehicle.model,
+    vehicle_type: dbVehicle.vehicle_type,
     status: dbVehicle.status as 'active' | 'inactive' | 'maintenance',
     current_location: parseLocation(dbVehicle.current_location),
     history: Array.isArray(dbVehicle.history) ? dbVehicle.history.map(parseLocation) : [],

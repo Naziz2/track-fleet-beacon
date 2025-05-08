@@ -1,7 +1,8 @@
+
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabase";
-import { Vehicle, mapVehicle } from "@/types";
+import { Vehicle, mapVehicle, Developer } from "@/types";
 import { toast } from "sonner";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -54,6 +55,8 @@ const AdminVehicles = () => {
   
   // Form state
   const [plateNumber, setPlateNumber] = useState("");
+  const [model, setModel] = useState("");
+  const [vehicleType, setVehicleType] = useState("car");
   const [status, setStatus] = useState<'active' | 'inactive' | 'maintenance'>('active');
   const [currentLocation, setCurrentLocation] = useState({
     lat: 33.5731,
@@ -84,6 +87,16 @@ const AdminVehicles = () => {
         const mappedData = (data || []).map(mapVehicle);
         setVehicles(mappedData);
         setFilteredVehicles(mappedData);
+
+        // Fetch developers
+        const { data: developerData, error: developerError } = await supabase
+          .from('developers')
+          .select('*')
+          .eq('admin_uid', user.id);
+          
+        if (developerError) throw developerError;
+        
+        setDevelopers(developerData || []);
       } catch (error) {
         console.error("Error fetching vehicles:", error);
         toast.error("Failed to load vehicles");
@@ -149,6 +162,8 @@ const AdminVehicles = () => {
   useEffect(() => {
     if (isEditing && selectedVehicle) {
       setPlateNumber(selectedVehicle.plate_number);
+      setModel(selectedVehicle.model || "");
+      setVehicleType(selectedVehicle.vehicle_type || "car");
       setStatus(selectedVehicle.status);
       setCurrentLocation(selectedVehicle.current_location);
       
@@ -166,6 +181,8 @@ const AdminVehicles = () => {
   // Reset the form
   const resetForm = () => {
     setPlateNumber("");
+    setModel("");
+    setVehicleType("car");
     setStatus('active');
     setCurrentLocation({
       lat: 33.5731,
@@ -203,6 +220,8 @@ const AdminVehicles = () => {
           .from('vehicles')
           .update({
             plate_number: plateNumber,
+            model: model,
+            vehicle_type: vehicleType,
             status,
             current_location: currentLocation,
           })
@@ -213,26 +232,27 @@ const AdminVehicles = () => {
         toast.success("Vehicle updated successfully");
       } else {
         // Create new vehicle
-        const { data, error } = await supabase
+        const vehicleId = crypto.randomUUID();
+        const { error } = await supabase
           .from('vehicles')
           .insert({
+            id: vehicleId,
             plate_number: plateNumber,
+            model: model,
+            vehicle_type: vehicleType,
             status,
             current_location: currentLocation,
             history: [{ ...currentLocation, timestamp: new Date().toISOString() }],
             admin_uid: user.id
-          })
-          .select();
+          });
           
         if (error) throw error;
         
-        if (data && data[0]) {
-          toast.success("Vehicle added successfully");
-          
-          // If developers are assigned, update them
-          if (assignedDevelopers.length > 0) {
-            await updateDeveloperAssignments(data[0].id);
-          }
+        toast.success("Vehicle added successfully");
+        
+        // If developers are assigned, update them
+        if (assignedDevelopers.length > 0) {
+          await updateDeveloperAssignments(vehicleId);
         }
       }
       
@@ -381,6 +401,8 @@ const AdminVehicles = () => {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Plate Number</TableHead>
+                    <TableHead>Model</TableHead>
+                    <TableHead>Type</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Location</TableHead>
                     <TableHead>Assigned To</TableHead>
@@ -397,6 +419,8 @@ const AdminVehicles = () => {
                     return (
                       <TableRow key={vehicle.id}>
                         <TableCell className="font-medium">{vehicle.plate_number}</TableCell>
+                        <TableCell>{vehicle.model || "—"}</TableCell>
+                        <TableCell>{vehicle.vehicle_type || "Car"}</TableCell>
                         <TableCell>
                           <Badge className={
                             vehicle.status === 'active' ? 'bg-green-500' :
@@ -487,13 +511,48 @@ const AdminVehicles = () => {
                   required
                 />
               </div>
+              
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="model" className="text-right">
+                  Model
+                </Label>
+                <Input
+                  id="model"
+                  value={model}
+                  onChange={(e) => setModel(e.target.value)}
+                  className="col-span-3"
+                  required
+                />
+              </div>
+              
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="type" className="text-right">
+                  Type
+                </Label>
+                <Select 
+                  value={vehicleType} 
+                  onValueChange={(value) => setVehicleType(value)}
+                >
+                  <SelectTrigger className="col-span-3">
+                    <SelectValue placeholder="Select type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="car">Car</SelectItem>
+                    <SelectItem value="truck">Truck</SelectItem>
+                    <SelectItem value="van">Van</SelectItem>
+                    <SelectItem value="motorcycle">Motorcycle</SelectItem>
+                    <SelectItem value="other">Other</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="status" className="text-right">
                   Status
                 </Label>
                 <Select 
                   value={status} 
-                  onValueChange={(value) => setStatus(value as any)}
+                  onValueChange={(value) => setStatus(value as 'active' | 'inactive' | 'maintenance')}
                 >
                   <SelectTrigger className="col-span-3">
                     <SelectValue placeholder="Select status" />
