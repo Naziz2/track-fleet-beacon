@@ -204,30 +204,30 @@ const AdminDevelopers = () => {
         
         toast.success("Developer updated successfully");
       } else {
-        // Create new developer account directly
-        // 1. Create auth user account
-        const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+        // Create a new user through sign-up
+        const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
           email: email,
           password: password,
-          email_confirm: true, // Auto-confirm email
-          user_metadata: {
-            first_name: firstName,
-            last_name: lastName,
-            role: 'developer'
+          options: {
+            data: {
+              first_name: firstName,
+              last_name: lastName,
+              role: 'developer'
+            }
           }
         });
         
-        if (authError) throw authError;
+        if (signUpError) throw signUpError;
         
-        if (!authData.user) {
+        if (!signUpData.user) {
           throw new Error("Failed to create user account");
         }
         
-        // 2. Create developer record
+        // Create developer record in the developers table
         const { error: devError } = await supabase
           .from('developers')
           .insert({
-            id: authData.user.id,
+            id: signUpData.user.id,
             first_name: firstName,
             last_name: lastName,
             email: email,
@@ -243,63 +243,10 @@ const AdminDevelopers = () => {
         if (devError) throw devError;
         
         toast.success("Developer account created successfully");
+        setDialogOpen(false);
       }
-      
-      setDialogOpen(false);
     } catch (error: any) {
       console.error("Error saving developer:", error);
-      if (error.message.includes('service_role') || error.message.includes('permission')) {
-        // Fallback to regular sign up if admin functions fail
-        try {
-          const { data: authData, error: signUpError } = await supabase.auth.signUp({
-            email: email,
-            password: password,
-            options: {
-              data: {
-                first_name: firstName,
-                last_name: lastName,
-                role: 'developer'
-              }
-            }
-          });
-          
-          if (signUpError) throw signUpError;
-          
-          if (!authData.user) {
-            throw new Error("Failed to create user account");
-          }
-          
-          // Create developer record
-          const { error: devError } = await supabase
-            .from('developers')
-            .insert({
-              id: authData.user.id,
-              first_name: firstName,
-              last_name: lastName,
-              email: email,
-              cin: cin,
-              phone: phone,
-              company_name: companyName,
-              address: address,
-              admin_uid: user.id,
-              assigned_vehicle_ids: [],
-              assigned_user_ids: []
-            });
-          
-          if (devError) throw devError;
-          
-          toast.success("Developer account created successfully");
-          setDialogOpen(false);
-          return;
-        } catch (signUpError: any) {
-          console.error("Fallback signup error:", signUpError);
-          toast.error("Failed to create developer account", { 
-            description: signUpError.message 
-          });
-          return;
-        }
-      }
-      
       toast.error("Failed to save developer", { 
         description: error.message 
       });

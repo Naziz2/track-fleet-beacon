@@ -39,7 +39,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import VehicleMap from "@/components/VehicleMap";
+import { VehicleMap, MultiVehicleMap } from "@/components/VehicleMap";
 
 const AdminVehicles = () => {
   const { user } = useAuth();
@@ -596,7 +596,7 @@ const AdminVehicles = () => {
             </DialogTitle>
           </DialogHeader>
           <div className="h-[500px]">
-            <VehicleMap 
+            <MultiVehicleMap 
               vehicles={
                 mapMode === 'view' && selectedVehicleForMap
                   ? vehicles.filter(v => v.id === selectedVehicleForMap)
