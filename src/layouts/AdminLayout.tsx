@@ -81,7 +81,7 @@ const AdminLayout = () => {
           {/* Logo */}
           <div className="flex items-center justify-center h-16 border-b">
             <h1 className="text-xl font-bold text-fleet-700">
-              FleetBeacon <span className="text-sm font-normal text-gray-500">Admin</span>
+              autotrace <span className="text-sm font-normal text-gray-500">Admin</span>
             </h1>
           </div>
           
@@ -145,7 +145,7 @@ const AdminLayout = () => {
           <Outlet />
         </main>
         <footer className="py-4 px-6 border-t text-center text-sm text-gray-500">
-          &copy; {new Date().getFullYear()} FleetBeacon. All rights reserved.
+          &copy; {new Date().getFullYear()} autotrace. All rights reserved.
         </footer>
       </div>
 

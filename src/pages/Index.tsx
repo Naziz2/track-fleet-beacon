@@ -25,7 +25,7 @@ const Index = () => {
       {/* Hero Section */}
       <header className="bg-fleet-700 text-white">
         <div className="max-w-7xl mx-auto px-4 py-16 sm:px-6 lg:px-8 flex flex-col items-center text-center">
-          <h1 className="text-4xl md:text-5xl font-bold mb-6">FleetBeacon</h1>
+          <h1 className="text-4xl md:text-5xl font-bold mb-6">autotrace</h1>
           <p className="text-xl md:text-2xl mb-8 max-w-3xl">
             Real-time vehicle tracking and fleet management solution for businesses of all sizes
           </p>
@@ -131,7 +131,7 @@ const Index = () => {
         <div className="max-w-4xl mx-auto text-center">
           <h2 className="text-3xl font-bold mb-6">Ready to optimize your fleet management?</h2>
           <p className="text-xl text-gray-600 mb-8">
-            Join thousands of businesses that trust FleetBeacon for their vehicle tracking needs.
+            Join thousands of businesses that trust autotrace for their vehicle tracking needs.
           </p>
           <Button
             className="bg-fleet-600 hover:bg-fleet-700 text-white"
@@ -148,7 +148,7 @@ const Index = () => {
         <div className="max-w-7xl mx-auto px-4 py-12">
           <div className="grid md:grid-cols-3 gap-8">
             <div>
-              <h3 className="text-xl font-bold mb-4">FleetBeacon</h3>
+              <h3 className="text-xl font-bold mb-4">autotrace</h3>
               <p className="text-fleet-200">
                 The ultimate solution for vehicle tracking and fleet management.
               </p>
@@ -181,7 +181,7 @@ const Index = () => {
             </div>
           </div>
           <div className="mt-12 pt-8 border-t border-fleet-700 text-center text-fleet-300">
-            <p>&copy; {new Date().getFullYear()} FleetBeacon. All rights reserved.</p>
+            <p>&copy; {new Date().getFullYear()} autotrace. All rights reserved.</p>
           </div>
         </div>
       </footer>
