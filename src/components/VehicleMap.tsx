@@ -89,7 +89,6 @@ export const VehicleMap = ({ vehicle, showHistory = false }: VehicleMapProps) =>
         {/* Show current vehicle location */}
         <Marker 
           position={[currentLocation.lat, currentLocation.lng]} 
-          icon={activeVehicleIcon}
         >
           <Popup>
             <div>
@@ -104,7 +103,6 @@ export const VehicleMap = ({ vehicle, showHistory = false }: VehicleMapProps) =>
           <Marker
             key={index}
             position={[location.lat, location.lng]}
-            icon={historyMarkerIcon}
           >
             <Popup>
               <div>
@@ -174,10 +172,9 @@ export const MultiVehicleMap = ({ vehicles, selectedVehicleId, onVehicleSelect }
           if (loc.lat === 0 && loc.lng === 0) return null;
           
           return (
-            <Marker
+            <Marker 
               key={vehicle.id}
               position={[loc.lat, loc.lng]}
-              icon={activeVehicleIcon}
               eventHandlers={onVehicleSelect ? {
                 click: () => onVehicleSelect(vehicle.id)
               } : undefined}

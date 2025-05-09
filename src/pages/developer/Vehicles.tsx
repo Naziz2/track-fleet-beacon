@@ -7,8 +7,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Search, Map as MapIcon } from "lucide-react";
-import { VehicleMap } from "@/components/VehicleMap";
+import { VehicleMap, MultiVehicleMap } from "@/components/VehicleMap";
 import {
   Table,
   TableBody,
@@ -25,6 +26,7 @@ const DeveloperVehicles = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedVehicleId, setSelectedVehicleId] = useState<string | undefined>(undefined);
   const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(null);
+  const [latestPositions, setLatestPositions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Fetch vehicles assigned to this developer
@@ -119,11 +121,39 @@ const DeveloperVehicles = () => {
   
   // Update selected vehicle when selected ID changes
   useEffect(() => {
+    const fetchPositions = async (vehicleId: string) => {
+      // 1. Get device(s) for this vehicle
+      const { data: deviceData, error: deviceError } = await supabase
+        .from('devices')
+        .select('id')
+        .eq('vehicle_id', vehicleId);
+      if (deviceError || !deviceData || deviceData.length === 0) {
+        setLatestPositions([]);
+        return;
+      }
+      const deviceIds = deviceData.map((d: any) => d.id);
+      // 2. Get latest positions for these device(s)
+      const { data: posData, error: posError } = await supabase
+        .from('vehicle_positions')
+        .select('*')
+        .in('device_id', deviceIds)
+        .order('created_at', { ascending: false })
+        .limit(10);
+      if (posError || !posData) {
+        setLatestPositions([]);
+        return;
+      }
+      setLatestPositions(posData);
+    };
+
     if (selectedVehicleId) {
       const vehicle = vehicles.find(v => v.id === selectedVehicleId) || null;
       setSelectedVehicle(vehicle);
+      if (vehicle) fetchPositions(vehicle.id);
+      else setLatestPositions([]);
     } else {
       setSelectedVehicle(null);
+      setLatestPositions([]);
     }
   }, [selectedVehicleId, vehicles]);
   
@@ -191,9 +221,9 @@ const DeveloperVehicles = () => {
           
           <TabsContent value="map">
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              <div className="lg:col-span-2">
-                <VehicleMap 
-                  vehicles={filteredVehicles} 
+              <div className="lg:col-span-2 h-[80vh]">
+                <MultiVehicleMap
+                  vehicles={filteredVehicles}
                   selectedVehicleId={selectedVehicleId}
                   onVehicleSelect={handleVehicleSelect}
                 />
@@ -218,33 +248,43 @@ const DeveloperVehicles = () => {
                           </Badge>
                         </div>
                         <div className="flex justify-between mb-2">
-                          <span className="font-medium">Current Location</span>
+                          <span className="font-medium">Latest Position</span>
                           <span>
-                            {selectedVehicle.current_location.lat.toFixed(6)}, 
-                            {selectedVehicle.current_location.lng.toFixed(6)}
+                            {latestPositions[0] ? `${latestPositions[0].latitude.toFixed(6)}, ${latestPositions[0].longitude.toFixed(6)}` : 'N/A'}
                           </span>
                         </div>
-                        
-                        <h4 className="font-medium mt-4 mb-2">Location History</h4>
+                        {latestPositions[0] && (
+                          <div className="space-y-1 text-xs text-gray-700 mb-2">
+                            <div><span className="font-medium">Latitude:</span> {latestPositions[0].latitude}</div>
+                            <div><span className="font-medium">Longitude:</span> {latestPositions[0].longitude}</div>
+                            <div><span className="font-medium">Speed:</span> {latestPositions[0].speed ?? 'N/A'}</div>
+                            <div><span className="font-medium">Accel X:</span> {latestPositions[0].accel_x ?? 'N/A'}</div>
+                            <div><span className="font-medium">Accel Y:</span> {latestPositions[0].accel_y ?? 'N/A'}</div>
+                            <div><span className="font-medium">Accel Z:</span> {latestPositions[0].accel_z ?? 'N/A'}</div>
+                            <div><span className="font-medium">Pitch:</span> {latestPositions[0].pitch ?? 'N/A'}</div>
+                            <div><span className="font-medium">Roll:</span> {latestPositions[0].roll ?? 'N/A'}</div>
+                            <div><span className="font-medium">Timestamp:</span> {formatDate(latestPositions[0].created_at)}</div>
+                          </div>
+                        )}
+                        <h4 className="font-medium mt-4 mb-2">Recent Positions</h4>
                         <div className="max-h-[300px] overflow-y-auto border rounded-md p-3">
-                          {selectedVehicle.history && selectedVehicle.history.length > 0 ? (
+                          {latestPositions.length > 0 ? (
                             <div className="space-y-2">
-                              {selectedVehicle.history.map((location, index) => (
-                                <div key={index} className="text-sm pb-2 border-b last:border-0">
+                              {latestPositions.map((pos, index) => (
+                                <div key={pos.id} className="text-sm pb-2 border-b last:border-0">
                                   <div className="flex justify-between">
                                     <span className="font-medium">{index + 1}.</span>
-                                    <span className="text-gray-500">
-                                      {location.timestamp ? formatDate(location.timestamp) : 'No timestamp'}
-                                    </span>
+                                    <span className="text-gray-500">{formatDate(pos.created_at)}</span>
                                   </div>
                                   <div className="mt-1">
-                                    Lat: {location.lat.toFixed(6)}, Lng: {location.lng.toFixed(6)}
+                                    Lat: {pos.latitude.toFixed(6)}, Lng: {pos.longitude.toFixed(6)}<br />
+                                    Speed: {pos.speed ?? 'N/A'}, Accel: [{pos.accel_x ?? 'N/A'}, {pos.accel_y ?? 'N/A'}, {pos.accel_z ?? 'N/A'}], Pitch: {pos.pitch ?? 'N/A'}, Roll: {pos.roll ?? 'N/A'}
                                   </div>
                                 </div>
                               ))}
                             </div>
                           ) : (
-                            <p className="text-center text-gray-500 py-4">No history available</p>
+                            <p className="text-center text-gray-500 py-4">No recent positions available</p>
                           )}
                         </div>
                       </div>
