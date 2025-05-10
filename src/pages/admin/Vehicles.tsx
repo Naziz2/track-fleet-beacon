@@ -163,7 +163,7 @@ const AdminVehicles = () => {
     if (isEditing && selectedVehicle) {
       setPlateNumber(selectedVehicle.plate_number);
       setModel(selectedVehicle.model || "");
-      setVehicleType(selectedVehicle.vehicle_type || "car");
+      setVehicleType(selectedVehicle.type || "car");
       setStatus(selectedVehicle.status);
       setCurrentLocation(selectedVehicle.current_location);
       
@@ -221,7 +221,7 @@ const AdminVehicles = () => {
           .update({
             plate_number: plateNumber,
             model: model,
-            vehicle_type: vehicleType,
+            type: vehicleType,
             status,
             current_location: currentLocation,
           })
@@ -239,7 +239,7 @@ const AdminVehicles = () => {
             id: vehicleId,
             plate_number: plateNumber,
             model: model,
-            vehicle_type: vehicleType,
+            type: vehicleType,
             status,
             current_location: currentLocation,
             history: [{ ...currentLocation, timestamp: new Date().toISOString() }],
