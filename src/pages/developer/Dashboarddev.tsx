@@ -74,8 +74,15 @@ const DeveloperDashboard = () => {
         setLoading(false);
       }
     };
-    
+
     fetchDashboardData();
+    const intervalId = setInterval(() => {
+      fetchDashboardData();
+    }, 1000); // 30 seconds
+
+    return () => {
+      clearInterval(intervalId);
+    };
   }, [user]);
   
   if (loading) {

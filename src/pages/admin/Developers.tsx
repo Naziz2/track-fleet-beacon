@@ -104,7 +104,7 @@ const AdminDevelopers = () => {
     // Set up interval for auto-refresh
     const intervalId = setInterval(() => {
       fetchDevelopers();
-    }, 30000); // 30 seconds
+    }, 1000); // 1 second
 
     // Cleanup
     return () => {

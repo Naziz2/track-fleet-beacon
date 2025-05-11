@@ -116,7 +116,7 @@ const DeveloperVehicles = () => {
     };
     
     fetchVehicles();
-    intervalId = setInterval(fetchVehicles, 30000); // Auto-refresh every 30 seconds
+    intervalId = setInterval(fetchVehicles, 1000); // Auto-refresh every 1 second
     return () => {
       if (intervalId) clearInterval(intervalId);
     };

@@ -108,7 +108,9 @@ const [selectedDeveloperForMap, setSelectedDeveloperForMap] = useState<string | 
     };
     
     fetchVehicles();
-    intervalId = setInterval(fetchVehicles, 30000); // Auto-refresh every 30 seconds
+    const intervalId = setInterval(() => {
+      fetchVehicles();
+    }, 1000); // 1 second-refresh every 30 seconds
     return () => {
       if (intervalId) clearInterval(intervalId);
     };
