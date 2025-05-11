@@ -54,7 +54,7 @@ const AdminVehicles = () => {
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [filteredVehicles, setFilteredVehicles] = useState<Vehicle[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
-  const [loading, setLoading] = useState(true);
+  // Removed loading state as per requirements
   const [dialogOpen, setDialogOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(null);
@@ -70,13 +70,13 @@ const AdminVehicles = () => {
   // Mode for the map view
   const [mapDialogOpen, setMapDialogOpen] = useState(false);
   const [selectedVehicleForMap, setSelectedVehicleForMap] = useState<string | undefined>(undefined);
+const [selectedDeveloperForMap, setSelectedDeveloperForMap] = useState<string | undefined>(undefined);
   
   // Fetch vehicles and developers
   useEffect(() => {
+    let intervalId: NodeJS.Timeout | null = null;
     const fetchVehicles = async () => {
       if (!user) return;
-      
-      setLoading(true);
       try {
         const { data, error } = await supabase
           .from('vehicles')
@@ -103,11 +103,15 @@ const AdminVehicles = () => {
         console.error("Error fetching vehicles:", error);
         toast.error("Failed to load vehicles");
       } finally {
-        setLoading(false);
+        // Removed loading state as per requirements
       }
     };
     
     fetchVehicles();
+    intervalId = setInterval(fetchVehicles, 30000); // Auto-refresh every 30 seconds
+    return () => {
+      if (intervalId) clearInterval(intervalId);
+    };
     
     // Set up subscription for real-time updates
     const vehiclesSubscription = supabase
@@ -186,6 +190,7 @@ const AdminVehicles = () => {
     setVehicleType("car");
     setStatus('active');
     setAssignedDevelopers([]);
+    setDeviceName("");
   };
   
   // Dialog open/close handlers
@@ -201,6 +206,9 @@ const AdminVehicles = () => {
     setDialogOpen(true);
   };
   
+  // Device name/serial for assignment
+  const [deviceName, setDeviceName] = useState("");
+
   // Handle form submit
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -229,7 +237,7 @@ const AdminVehicles = () => {
       } else {
         // Create new vehicle
         const vehicleId = crypto.randomUUID();
-        const { error } = await supabase
+        const { error: vehicleError } = await supabase
           .from('vehicles')
           .insert({
             id: vehicleId,
@@ -239,9 +247,19 @@ const AdminVehicles = () => {
             status,
             admin_uid: user.id
           });
-          
-        if (error) throw error;
-        
+        if (vehicleError) throw vehicleError;
+
+        // Create device and assign to vehicle
+        if (deviceName) {
+          const { error: deviceError } = await supabase
+            .from('devices')
+            .insert({
+              id: deviceName, // use input as device id
+              vehicle_id: vehicleId
+            });
+          if (deviceError) throw deviceError;
+        }
+
         toast.success("Vehicle added successfully");
         
         // If developers are assigned, update them
@@ -331,16 +349,6 @@ const AdminVehicles = () => {
     setMapDialogOpen(true);
   };
 
-  if (loading) {
-    return (
-      <div className="flex h-full items-center justify-center p-8">
-        <div className="text-center">
-          <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full mx-auto mb-4"></div>
-          <p>Loading vehicles...</p>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <>
@@ -532,6 +540,18 @@ const AdminVehicles = () => {
                   </SelectContent>
                 </Select>
               </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="device-name" className="text-right">
+                  Device ID (serial)
+                </Label>
+                <Input
+                  id="device-name"
+                  value={deviceName}
+                  onChange={e => setDeviceName(e.target.value)}
+                  className="col-span-3"
+                  placeholder="Device ID (serial)"
+                />
+              </div>
               
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="status" className="text-right">
@@ -594,12 +614,28 @@ const AdminVehicles = () => {
           <DialogHeader>
             <DialogTitle>Vehicle Location</DialogTitle>
           </DialogHeader>
+          <div className="mb-4">
+            <label htmlFor="dev-map-select" className="block font-medium mb-1">Show vehicles for developer:</label>
+            <select
+              id="dev-map-select"
+              className="border rounded px-2 py-1 w-full"
+              value={selectedDeveloperForMap || ''}
+              onChange={e => setSelectedDeveloperForMap(e.target.value || undefined)}
+            >
+              <option value="">All Developers</option>
+              {developers.map(dev => (
+                <option key={dev.id} value={dev.id}>
+                  {dev.first_name} {dev.last_name}
+                </option>
+              ))}
+            </select>
+          </div>
           <div className="h-[500px]">
-            <MultiVehicleMap 
+            <MultiVehicleMap
               vehicles={
-                selectedVehicleForMap
-                  ? vehicles.filter(v => v.id === selectedVehicleForMap)
-                  : []
+                selectedDeveloperForMap
+                  ? vehicles.filter(v => developers.find(dev => dev.id === selectedDeveloperForMap)?.assigned_vehicle_ids?.includes(v.id))
+                  : vehicles
               }
               selectedVehicleId={selectedVehicleForMap}
             />

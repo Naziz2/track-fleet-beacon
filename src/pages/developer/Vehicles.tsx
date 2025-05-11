@@ -27,14 +27,13 @@ const DeveloperVehicles = () => {
   const [selectedVehicleId, setSelectedVehicleId] = useState<string | undefined>(undefined);
   const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(null);
   const [latestPositions, setLatestPositions] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  // Removed loading state as per requirements
 
   // Fetch vehicles assigned to this developer
   useEffect(() => {
+    let intervalId: NodeJS.Timeout | null = null;
     const fetchVehicles = async () => {
       if (!user) return;
-      
-      setLoading(true);
       try {
         // First get the developer record to get assigned vehicle IDs
         const { data: developerData, error: developerError } = await supabase
@@ -112,11 +111,15 @@ const DeveloperVehicles = () => {
         console.error("Error fetching vehicles:", error);
         toast.error("Failed to load vehicles");
       } finally {
-        setLoading(false);
+        // Removed loading state as per requirements
       }
     };
     
     fetchVehicles();
+    intervalId = setInterval(fetchVehicles, 30000); // Auto-refresh every 30 seconds
+    return () => {
+      if (intervalId) clearInterval(intervalId);
+    };
     
     // Set up real-time subscription for vehicle_positions
     const positionsSubscription = supabase
@@ -263,16 +266,6 @@ const DeveloperVehicles = () => {
     }
   };
   
-  if (loading) {
-    return (
-      <div className="flex h-full items-center justify-center p-8">
-        <div className="text-center">
-          <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full mx-auto mb-4"></div>
-          <p>Loading vehicles...</p>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="space-y-6">
