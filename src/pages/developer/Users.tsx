@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabase";
@@ -106,13 +105,11 @@ const DeveloperUsers = () => {
                 id: v.id,
                 plate_number: v.plate_number,
                 status: v.status as 'active' | 'inactive' | 'maintenance',
-                current_location: typeof v.current_location === 'string' 
-                  ? JSON.parse(v.current_location) 
-                  : v.current_location,
-                history: Array.isArray(v.history) 
-                  ? v.history.map(loc => typeof loc === 'string' ? JSON.parse(loc) : loc) 
-                  : [],
-                admin_uid: v.admin_uid
+                admin_uid: v.admin_uid,
+                model: v.model,
+                type: v.type,
+                ...(v.current_location && { current_location: v.current_location }),
+                ...(Array.isArray(v.history) && { history: v.history })
               })));
             }
           }

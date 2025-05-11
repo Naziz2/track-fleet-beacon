@@ -13,8 +13,8 @@ export interface Vehicle {
   id: string;
   plate_number: string;
   status: 'active' | 'inactive' | 'maintenance';
-  current_location: Location;
-  history: Location[];
+  current_location?: Location;  // Make this optional
+  history?: Location[];         // Make this optional
   admin_uid: string;
   model?: string;
   type?: string;
@@ -73,16 +73,27 @@ export interface Admin {
 
 // Helper functions to convert database types to our interface types
 export const mapVehicle = (dbVehicle: any): Vehicle => {
-  return {
+  // Handle both cases - vehicles with or without location data
+  const vehicle: Vehicle = {
     id: dbVehicle.id,
     plate_number: dbVehicle.plate_number,
     status: dbVehicle.status as 'active' | 'inactive' | 'maintenance',
-    current_location: parseLocation(dbVehicle.current_location) || { lat: 0, lng: 0 },
-    history: Array.isArray(dbVehicle.history) ? dbVehicle.history.map(parseLocation) : [],
     admin_uid: dbVehicle.admin_uid,
     model: dbVehicle.model,
     type: dbVehicle.type || dbVehicle.vehicle_type || 'car'
   };
+
+  // Only add location data if it exists
+  if (dbVehicle.current_location) {
+    vehicle.current_location = parseLocation(dbVehicle.current_location);
+  }
+
+  // Only add history if it exists and is an array
+  if (Array.isArray(dbVehicle.history)) {
+    vehicle.history = dbVehicle.history.map(parseLocation);
+  }
+
+  return vehicle;
 };
 
 export const mapAlert = (dbAlert: any): Alert => {

@@ -66,12 +66,12 @@ export interface MultiVehicleMapProps {
 // Component for showing a single vehicle
 export const VehicleMap = ({ vehicle, showHistory = false }: VehicleMapProps) => {
   // Process the current_location to ensure it's in the right format
-  const currentLocation = parseLocation(vehicle.current_location);
+  const currentLocation = vehicle.current_location ? parseLocation(vehicle.current_location) : { lat: 0, lng: 0 };
   
   // Process the history locations
   const historyLocations = vehicle.history
-    ?.map(loc => parseLocation(loc))
-    .filter(loc => loc.lat !== 0 && loc.lng !== 0) || [];
+    ? vehicle.history.map(loc => parseLocation(loc)).filter(loc => loc.lat !== 0 && loc.lng !== 0)
+    : [];
   
   return (
     <div className="h-full min-h-[300px] w-full rounded-md border">
@@ -170,7 +170,10 @@ export const MultiVehicleMap = ({ vehicles, selectedVehicleId, onVehicleSelect }
         
         {/* Show all vehicles */}
         {vehicles.map((vehicle) => {
-          if (!vehicle || !vehicle.current_location) return null;
+          if (!vehicle) return null;
+          
+          // Skip vehicles without location data
+          if (!vehicle.current_location) return null;
           
           const loc = parseLocation(vehicle.current_location);
           if (loc.lat === 0 && loc.lng === 0) return null;
