@@ -315,7 +315,7 @@ const [selectedDeveloperForMap, setSelectedDeveloperForMap] = useState<string | 
     if (!confirm("Are you sure you want to delete this vehicle?")) {
       return;
     }
-    
+
     try {
       // Remove vehicle from all developers first
       for (const developer of developers) {
@@ -327,15 +327,21 @@ const [selectedDeveloperForMap, setSelectedDeveloperForMap] = useState<string | 
             .eq('id', developer.id);
         }
       }
-      
+
+      // Delete all devices associated with this vehicle
+      const { error: deviceDeleteError } = await supabase
+        .from('devices')
+        .delete()
+        .eq('vehicle_id', vehicleId);
+      if (deviceDeleteError) throw deviceDeleteError;
+
       // Delete the vehicle
       const { error } = await supabase
         .from('vehicles')
         .delete()
         .eq('id', vehicleId);
-        
       if (error) throw error;
-      
+
       toast.success("Vehicle deleted successfully");
     } catch (error) {
       console.error("Error deleting vehicle:", error);
