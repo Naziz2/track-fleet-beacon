@@ -13,8 +13,8 @@ export interface Vehicle {
   id: string;
   plate_number: string;
   status: 'active' | 'inactive' | 'maintenance';
-  current_location?: Location;  // Make this optional
-  history?: Location[];         // Make this optional
+  current_location?: Location;
+  history?: Location[];
   admin_uid: string;
   model?: string;
   type?: string;

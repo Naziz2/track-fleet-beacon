@@ -57,25 +57,50 @@ const DeveloperVehicles = () => {
             
           if (vehicleError) throw vehicleError;
           
-          // Make sure to map the raw data to our Vehicle type
+          // Convert raw data to Vehicle type
           const mappedVehicles = (vehicleData || []).map((vehicle: any) => ({
             id: vehicle.id,
             plate_number: vehicle.plate_number,
             status: vehicle.status as 'active' | 'inactive' | 'maintenance',
-            current_location: vehicle.current_location ? {
-              lat: vehicle.current_location.lat || 0,
-              lng: vehicle.current_location.lng || 0,
-              timestamp: vehicle.current_location.timestamp
-            } : { lat: 0, lng: 0 },
-            history: Array.isArray(vehicle.history) ? vehicle.history.map((loc: any) => ({
-              lat: loc.lat || 0,
-              lng: loc.lng || 0,
-              timestamp: loc.timestamp
-            })) : [],
             admin_uid: vehicle.admin_uid,
             model: vehicle.model,
             type: vehicle.type || 'car',
           }));
+          
+          // For each vehicle, get the latest position from vehicle_positions via devices
+          for (const vehicle of mappedVehicles) {
+            try {
+              // Get device ID for this vehicle
+              const { data: deviceData } = await supabase
+                .from('devices')
+                .select('id')
+                .eq('vehicle_id', vehicle.id);
+                
+              if (deviceData && deviceData.length > 0) {
+                const deviceIds = deviceData.map((d: any) => d.id);
+                
+                // Get latest position for this device
+                const { data: posData } = await supabase
+                  .from('vehicle_positions')
+                  .select('*')
+                  .in('device_id', deviceIds)
+                  .order('created_at', { ascending: false })
+                  .limit(1);
+                  
+                if (posData && posData.length > 0) {
+                  // Add current location to the vehicle
+                  const latestPos = posData[0];
+                  vehicle.current_location = {
+                    lat: latestPos.latitude,
+                    lng: latestPos.longitude,
+                    timestamp: latestPos.created_at
+                  };
+                }
+              }
+            } catch (error) {
+              console.error(`Failed to fetch position for vehicle ${vehicle.id}:`, error);
+            }
+          }
           
           setVehicles(mappedVehicles);
           setFilteredVehicles(mappedVehicles);
@@ -93,54 +118,71 @@ const DeveloperVehicles = () => {
     
     fetchVehicles();
     
-    // Set up subscription for real-time updates
-    const vehiclesSubscription = supabase
-      .channel('vehicles_channel')
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'vehicles' }, (payload) => {
-        const updatedVehicle = payload.new as any;
-        // Map the updated vehicle to our type
-        const mappedVehicle: Vehicle = {
-          id: updatedVehicle.id,
-          plate_number: updatedVehicle.plate_number,
-          status: updatedVehicle.status as 'active' | 'inactive' | 'maintenance',
-          current_location: updatedVehicle.current_location ? {
-            lat: updatedVehicle.current_location.lat || 0,
-            lng: updatedVehicle.current_location.lng || 0,
-            timestamp: updatedVehicle.current_location.timestamp
-          } : { lat: 0, lng: 0 },
-          history: Array.isArray(updatedVehicle.history) ? updatedVehicle.history.map((loc: any) => ({
-            lat: loc.lat || 0,
-            lng: loc.lng || 0,
-            timestamp: loc.timestamp
-          })) : [],
-          admin_uid: updatedVehicle.admin_uid,
-          model: updatedVehicle.model,
-          type: updatedVehicle.type || 'car',
-        };
-        
-        setVehicles(prev => 
-          prev.map(vehicle => 
-            vehicle.id === mappedVehicle.id ? mappedVehicle : vehicle
-          )
-        );
-        setFilteredVehicles(prev => 
-          prev.map(vehicle => 
-            vehicle.id === mappedVehicle.id ? mappedVehicle : vehicle
-          )
-        );
-        
-        // If this is the selected vehicle, update it
-        if (selectedVehicle && selectedVehicle.id === mappedVehicle.id) {
-          setSelectedVehicle(mappedVehicle);
+    // Set up real-time subscription for vehicle_positions
+    const positionsSubscription = supabase
+      .channel('vehicle_positions_channel')
+      .on('postgres_changes', 
+        { event: 'INSERT', schema: 'public', table: 'vehicle_positions' }, 
+        async (payload) => {
+          try {
+            const newPosition = payload.new as any;
+            
+            // Find which vehicle this belongs to
+            const { data: deviceData } = await supabase
+              .from('devices')
+              .select('vehicle_id')
+              .eq('id', newPosition.device_id)
+              .single();
+              
+            if (deviceData) {
+              const vehicleId = deviceData.vehicle_id;
+              
+              // Update vehicle's current location
+              setVehicles(prev => 
+                prev.map(vehicle => 
+                  vehicle.id === vehicleId 
+                    ? {
+                        ...vehicle,
+                        current_location: {
+                          lat: newPosition.latitude,
+                          lng: newPosition.longitude,
+                          timestamp: newPosition.created_at
+                        }
+                      } 
+                    : vehicle
+                )
+              );
+              
+              setFilteredVehicles(prev => 
+                prev.map(vehicle => 
+                  vehicle.id === vehicleId 
+                    ? {
+                        ...vehicle,
+                        current_location: {
+                          lat: newPosition.latitude,
+                          lng: newPosition.longitude,
+                          timestamp: newPosition.created_at
+                        }
+                      } 
+                    : vehicle
+                )
+              );
+              
+              // If this is for the selected vehicle, update position data
+              if (selectedVehicle && selectedVehicle.id === vehicleId) {
+                setLatestPositions(prev => [newPosition, ...prev].slice(0, 10));
+              }
+            }
+          } catch (error) {
+            console.error("Error processing position update:", error);
+          }
         }
-        
-        toast.info(`Vehicle ${mappedVehicle.plate_number} updated`);
-      })
+      )
       .subscribe();
       
     // Cleanup subscription
     return () => {
-      vehiclesSubscription.unsubscribe();
+      positionsSubscription.unsubscribe();
     };
   }, [user]);
   
@@ -153,7 +195,9 @@ const DeveloperVehicles = () => {
       setFilteredVehicles(
         vehicles.filter((vehicle) => 
           vehicle.plate_number.toLowerCase().includes(lowerCaseSearch) ||
-          vehicle.status.toLowerCase().includes(lowerCaseSearch)
+          vehicle.status.toLowerCase().includes(lowerCaseSearch) ||
+          (vehicle.model && vehicle.model.toLowerCase().includes(lowerCaseSearch)) ||
+          (vehicle.type && vehicle.type.toLowerCase().includes(lowerCaseSearch))
         )
       );
     }
@@ -356,6 +400,8 @@ const DeveloperVehicles = () => {
                   <TableHeader>
                     <TableRow>
                       <TableHead>Plate Number</TableHead>
+                      <TableHead>Model</TableHead>
+                      <TableHead>Type</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead>Current Location</TableHead>
                       <TableHead>Last Updated</TableHead>
@@ -367,6 +413,12 @@ const DeveloperVehicles = () => {
                       <TableRow key={vehicle.id}>
                         <TableCell className="font-medium">
                           {vehicle.plate_number}
+                        </TableCell>
+                        <TableCell>
+                          {vehicle.model || 'N/A'}
+                        </TableCell>
+                        <TableCell>
+                          {vehicle.type || 'N/A'}
                         </TableCell>
                         <TableCell>
                           <Badge className={
@@ -386,8 +438,8 @@ const DeveloperVehicles = () => {
                           )}
                         </TableCell>
                         <TableCell>
-                          {vehicle.history && vehicle.history.length > 0 && vehicle.history[0].timestamp
-                            ? formatDate(vehicle.history[0].timestamp)
+                          {vehicle.current_location && vehicle.current_location.timestamp
+                            ? formatDate(vehicle.current_location.timestamp)
                             : 'N/A'}
                         </TableCell>
                         <TableCell className="text-right">

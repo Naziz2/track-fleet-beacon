@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabase";
@@ -30,7 +31,7 @@ const DeveloperAlerts = () => {
   const [filteredAlerts, setFilteredAlerts] = useState<Alert[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(true);
-  const [vehicles, setVehicles] = useState<{ [key: string]: Vehicle }>({});
+  const [vehiclesMap, setVehiclesMap] = useState<{ [key: string]: Vehicle }>({});
   const [filterType, setFilterType] = useState<string>("all");
   
   // Fetch alerts
@@ -62,7 +63,12 @@ const DeveloperAlerts = () => {
           
           // Map the vehicles data using our helper function
           const mappedVehicles = (vehicleData || []).map(mapVehicle);
-          setVehicles(mappedVehicles);
+          // Create a map of vehicle ID to vehicle object for easy lookup
+          const vehiclesMapObj: { [key: string]: Vehicle } = {};
+          mappedVehicles.forEach(vehicle => {
+            vehiclesMapObj[vehicle.id] = vehicle;
+          });
+          setVehiclesMap(vehiclesMapObj);
           
           // Fetch alerts for these vehicles
           const { data: alertData, error: alertError } = await supabase
@@ -98,7 +104,7 @@ const DeveloperAlerts = () => {
         const newAlert = payload.new as Alert;
         
         // Check if this alert belongs to one of our vehicles
-        if (vehicles[newAlert.vehicle_id]) {
+        if (vehiclesMap[newAlert.vehicle_id]) {
           setAlerts(prevAlerts => [newAlert, ...prevAlerts]);
           
           // Apply filters if needed
@@ -107,7 +113,7 @@ const DeveloperAlerts = () => {
           }
           
           // Show notification
-          const vehiclePlate = vehicles[newAlert.vehicle_id]?.plate_number || 'Unknown Vehicle';
+          const vehiclePlate = vehiclesMap[newAlert.vehicle_id]?.plate_number || 'Unknown Vehicle';
           toast.error(`New Alert: ${newAlert.type}`, {
             description: `${vehiclePlate}: ${newAlert.description}`,
           });
@@ -134,7 +140,7 @@ const DeveloperAlerts = () => {
     if (searchTerm.trim() !== "") {
       const lowerCaseSearch = searchTerm.toLowerCase();
       filtered = filtered.filter((alert) => {
-        const vehiclePlate = vehicles[alert.vehicle_id]?.plate_number?.toLowerCase() || '';
+        const vehiclePlate = vehiclesMap[alert.vehicle_id]?.plate_number?.toLowerCase() || '';
         return (
           alert.description.toLowerCase().includes(lowerCaseSearch) ||
           alert.type.toLowerCase().includes(lowerCaseSearch) ||
@@ -144,7 +150,7 @@ const DeveloperAlerts = () => {
     }
     
     setFilteredAlerts(filtered);
-  }, [searchTerm, filterType, alerts, vehicles]);
+  }, [searchTerm, filterType, alerts, vehiclesMap]);
   
   // Format date
   const formatDate = (dateString: string) => {
@@ -255,7 +261,7 @@ const DeveloperAlerts = () => {
               </TableHeader>
               <TableBody>
                 {filteredAlerts.map((alert) => {
-                  const vehicle = vehicles[alert.vehicle_id];
+                  const vehicle = vehiclesMap[alert.vehicle_id];
                   return (
                     <TableRow key={alert.id}>
                       <TableCell>
