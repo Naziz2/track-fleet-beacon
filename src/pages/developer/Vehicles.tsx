@@ -1,7 +1,8 @@
+
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabase";
-import { Vehicle, mapVehicle } from "@/types";
+import { Vehicle } from "@/types";
 import { toast } from "sonner";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -56,9 +57,28 @@ const DeveloperVehicles = () => {
             
           if (vehicleError) throw vehicleError;
           
-          const vehicles = vehicleData || [];
-          setVehicles(vehicles);
-          setFilteredVehicles(vehicles);
+          // Make sure to map the raw data to our Vehicle type
+          const mappedVehicles = (vehicleData || []).map((vehicle: any) => ({
+            id: vehicle.id,
+            plate_number: vehicle.plate_number,
+            status: vehicle.status as 'active' | 'inactive' | 'maintenance',
+            current_location: vehicle.current_location ? {
+              lat: vehicle.current_location.lat || 0,
+              lng: vehicle.current_location.lng || 0,
+              timestamp: vehicle.current_location.timestamp
+            } : { lat: 0, lng: 0 },
+            history: Array.isArray(vehicle.history) ? vehicle.history.map((loc: any) => ({
+              lat: loc.lat || 0,
+              lng: loc.lng || 0,
+              timestamp: loc.timestamp
+            })) : [],
+            admin_uid: vehicle.admin_uid,
+            model: vehicle.model,
+            type: vehicle.type || 'car',
+          }));
+          
+          setVehicles(mappedVehicles);
+          setFilteredVehicles(mappedVehicles);
         } else {
           setVehicles([]);
           setFilteredVehicles([]);
@@ -77,24 +97,44 @@ const DeveloperVehicles = () => {
     const vehiclesSubscription = supabase
       .channel('vehicles_channel')
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'vehicles' }, (payload) => {
-        const updatedVehicle = payload.new as Vehicle;
+        const updatedVehicle = payload.new as any;
+        // Map the updated vehicle to our type
+        const mappedVehicle: Vehicle = {
+          id: updatedVehicle.id,
+          plate_number: updatedVehicle.plate_number,
+          status: updatedVehicle.status as 'active' | 'inactive' | 'maintenance',
+          current_location: updatedVehicle.current_location ? {
+            lat: updatedVehicle.current_location.lat || 0,
+            lng: updatedVehicle.current_location.lng || 0,
+            timestamp: updatedVehicle.current_location.timestamp
+          } : { lat: 0, lng: 0 },
+          history: Array.isArray(updatedVehicle.history) ? updatedVehicle.history.map((loc: any) => ({
+            lat: loc.lat || 0,
+            lng: loc.lng || 0,
+            timestamp: loc.timestamp
+          })) : [],
+          admin_uid: updatedVehicle.admin_uid,
+          model: updatedVehicle.model,
+          type: updatedVehicle.type || 'car',
+        };
+        
         setVehicles(prev => 
           prev.map(vehicle => 
-            vehicle.id === updatedVehicle.id ? updatedVehicle : vehicle
+            vehicle.id === mappedVehicle.id ? mappedVehicle : vehicle
           )
         );
         setFilteredVehicles(prev => 
           prev.map(vehicle => 
-            vehicle.id === updatedVehicle.id ? updatedVehicle : vehicle
+            vehicle.id === mappedVehicle.id ? mappedVehicle : vehicle
           )
         );
         
         // If this is the selected vehicle, update it
-        if (selectedVehicle && selectedVehicle.id === updatedVehicle.id) {
-          setSelectedVehicle(updatedVehicle);
+        if (selectedVehicle && selectedVehicle.id === mappedVehicle.id) {
+          setSelectedVehicle(mappedVehicle);
         }
         
-        toast.info(`Vehicle ${updatedVehicle.plate_number} updated`);
+        toast.info(`Vehicle ${mappedVehicle.plate_number} updated`);
       })
       .subscribe();
       
@@ -338,8 +378,12 @@ const DeveloperVehicles = () => {
                           </Badge>
                         </TableCell>
                         <TableCell>
-                          {vehicle.current_location.lat.toFixed(6)}, 
-                          {vehicle.current_location.lng.toFixed(6)}
+                          {vehicle.current_location && vehicle.current_location.lat !== undefined ? (
+                            `${vehicle.current_location.lat.toFixed(6)}, 
+                            ${vehicle.current_location.lng.toFixed(6)}`
+                          ) : (
+                            'N/A'
+                          )}
                         </TableCell>
                         <TableCell>
                           {vehicle.history && vehicle.history.length > 0 && vehicle.history[0].timestamp

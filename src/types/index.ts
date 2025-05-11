@@ -16,6 +16,9 @@ export interface Vehicle {
   current_location: Location;
   history: Location[];
   admin_uid: string;
+  model?: string;
+  type?: string;
+  vehicle_type?: string;
 }
 
 export interface Alert {
@@ -74,9 +77,11 @@ export const mapVehicle = (dbVehicle: any): Vehicle => {
     id: dbVehicle.id,
     plate_number: dbVehicle.plate_number,
     status: dbVehicle.status as 'active' | 'inactive' | 'maintenance',
-    current_location: parseLocation(dbVehicle.current_location),
+    current_location: parseLocation(dbVehicle.current_location) || { lat: 0, lng: 0 },
     history: Array.isArray(dbVehicle.history) ? dbVehicle.history.map(parseLocation) : [],
-    admin_uid: dbVehicle.admin_uid
+    admin_uid: dbVehicle.admin_uid,
+    model: dbVehicle.model,
+    type: dbVehicle.type || dbVehicle.vehicle_type || 'car'
   };
 };
 
@@ -123,11 +128,15 @@ export const mapUser = (dbUser: any): User => {
 
 // Helper function to parse location data from any format
 export const parseLocation = (location: any): Location => {
+  if (!location) {
+    return { lat: 0, lng: 0 };
+  }
+  
   if (typeof location === 'object' && location !== null) {
     if ('lat' in location && 'lng' in location) {
       return {
-        lat: Number(location.lat),
-        lng: Number(location.lng),
+        lat: Number(location.lat) || 0,
+        lng: Number(location.lng) || 0,
         timestamp: location.timestamp
       };
     }
@@ -138,8 +147,8 @@ export const parseLocation = (location: any): Location => {
     if (typeof location === 'string') {
       const parsed = JSON.parse(location);
       return {
-        lat: Number(parsed.lat),
-        lng: Number(parsed.lng),
+        lat: Number(parsed.lat) || 0,
+        lng: Number(parsed.lng) || 0,
         timestamp: parsed.timestamp
       };
     }

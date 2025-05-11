@@ -122,6 +122,29 @@ export type Database = {
         }
         Relationships: []
       }
+      devices: {
+        Row: {
+          id: string
+          vehicle_id: string
+        }
+        Insert: {
+          id: string
+          vehicle_id: string
+        }
+        Update: {
+          id?: string
+          vehicle_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "devices_vehicle_id_fkey"
+            columns: ["vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "vehicles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       users: {
         Row: {
           address: string
@@ -158,30 +181,83 @@ export type Database = {
         }
         Relationships: []
       }
+      vehicle_positions: {
+        Row: {
+          accel_x: number | null
+          accel_y: number | null
+          accel_z: number | null
+          created_at: string | null
+          device_id: string
+          id: string
+          latitude: number
+          longitude: number
+          pitch: number | null
+          roll: number | null
+          speed: number | null
+        }
+        Insert: {
+          accel_x?: number | null
+          accel_y?: number | null
+          accel_z?: number | null
+          created_at?: string | null
+          device_id: string
+          id?: string
+          latitude: number
+          longitude: number
+          pitch?: number | null
+          roll?: number | null
+          speed?: number | null
+        }
+        Update: {
+          accel_x?: number | null
+          accel_y?: number | null
+          accel_z?: number | null
+          created_at?: string | null
+          device_id?: string
+          id?: string
+          latitude?: number
+          longitude?: number
+          pitch?: number | null
+          roll?: number | null
+          speed?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vehicle_positions_device_id_fkey"
+            columns: ["device_id"]
+            isOneToOne: false
+            referencedRelation: "devices"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       vehicles: {
         Row: {
           admin_uid: string
-          current_location: Json
-          history: Json[]
+          assigned_devices: string[] | null
           id: string
+          model: string | null
           plate_number: string
           status: string
+          type: string | null
         }
         Insert: {
           admin_uid: string
-          current_location: Json
-          history?: Json[]
+          assigned_devices?: string[] | null
           id?: string
+          model?: string | null
           plate_number: string
           status: string
+          type?: string | null
         }
         Update: {
           admin_uid?: string
-          current_location?: Json
-          history?: Json[]
+          assigned_devices?: string[] | null
           id?: string
+          model?: string | null
           plate_number?: string
           status?: string
+          type?: string | null
         }
         Relationships: []
       }
