@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabase";
@@ -58,7 +57,7 @@ const DeveloperVehicles = () => {
           if (vehicleError) throw vehicleError;
           
           // Convert raw data to Vehicle type
-          const mappedVehicles = (vehicleData || []).map((vehicle: any) => ({
+          const mappedVehicles: Vehicle[] = (vehicleData || []).map((vehicle: any) => ({
             id: vehicle.id,
             plate_number: vehicle.plate_number,
             status: vehicle.status as 'active' | 'inactive' | 'maintenance',
