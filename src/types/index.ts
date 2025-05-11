@@ -19,6 +19,7 @@ export interface Vehicle {
   model?: string;
   type?: string;
   vehicle_type?: string;
+  assigned_devices?: string[];
 }
 
 export interface Alert {
@@ -80,7 +81,8 @@ export const mapVehicle = (dbVehicle: any): Vehicle => {
     status: dbVehicle.status as 'active' | 'inactive' | 'maintenance',
     admin_uid: dbVehicle.admin_uid,
     model: dbVehicle.model,
-    type: dbVehicle.type || dbVehicle.vehicle_type || 'car'
+    type: dbVehicle.type || dbVehicle.vehicle_type || 'car',
+    assigned_devices: dbVehicle.assigned_devices || []
   };
 
   // Only add location data if it exists
@@ -151,6 +153,15 @@ export const parseLocation = (location: any): Location => {
         timestamp: location.timestamp
       };
     }
+    
+    // Check for latitude/longitude properties
+    if ('latitude' in location && 'longitude' in location) {
+      return {
+        lat: Number(location.latitude) || 0,
+        lng: Number(location.longitude) || 0,
+        timestamp: location.created_at || location.timestamp
+      };
+    }
   }
   
   try {
@@ -158,9 +169,9 @@ export const parseLocation = (location: any): Location => {
     if (typeof location === 'string') {
       const parsed = JSON.parse(location);
       return {
-        lat: Number(parsed.lat) || 0,
-        lng: Number(parsed.lng) || 0,
-        timestamp: parsed.timestamp
+        lat: Number(parsed.lat || parsed.latitude) || 0,
+        lng: Number(parsed.lng || parsed.longitude) || 0,
+        timestamp: parsed.timestamp || parsed.created_at
       };
     }
   } catch (e) {

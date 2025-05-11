@@ -76,33 +76,35 @@ export const VehicleMap = ({ vehicle, showHistory = false }: VehicleMapProps) =>
   return (
     <div className="h-full min-h-[300px] w-full rounded-md border">
       <MapContainer
-        center={[currentLocation.lat || 0, currentLocation.lng || 0]}
+        center={[currentLocation.lat || 37.7749, currentLocation.lng || -122.4194]}
         zoom={13}
         className="h-full w-full rounded-md"
       >
-        <MapView center={[currentLocation.lat || 0, currentLocation.lng || 0]} />
+        <MapView center={[currentLocation.lat || 37.7749, currentLocation.lng || -122.4194]} />
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
         
         {/* Show current vehicle location */}
-        <Marker 
-          position={[currentLocation.lat || 0, currentLocation.lng || 0]} 
-        >
-          <Popup>
-            <div>
-              <p className="font-bold">{vehicle.plate_number}</p>
-              <p>Current Location</p>
-            </div>
-          </Popup>
-        </Marker>
+        {currentLocation.lat !== 0 && currentLocation.lng !== 0 && (
+          <Marker 
+            position={[currentLocation.lat, currentLocation.lng]} 
+          >
+            <Popup>
+              <div>
+                <p className="font-bold">{vehicle.plate_number}</p>
+                <p>Current Location</p>
+              </div>
+            </Popup>
+          </Marker>
+        )}
         
         {/* Show history if enabled */}
         {showHistory && historyLocations.map((location, index) => (
           <Marker
             key={index}
-            position={[location.lat || 0, location.lng || 0]}
+            position={[location.lat, location.lng]}
           >
             <Popup>
               <div>
@@ -130,8 +132,8 @@ export const MultiVehicleMap = ({ vehicles, selectedVehicleId, onVehicleSelect }
     const selectedVehicle = vehicles.find(v => v.id === selectedVehicleId);
     if (selectedVehicle && selectedVehicle.current_location) {
       const loc = parseLocation(selectedVehicle.current_location);
-      centerLat = loc.lat || 0;
-      centerLng = loc.lng || 0;
+      centerLat = loc.lat;
+      centerLng = loc.lng;
     }
   }
   
@@ -141,8 +143,8 @@ export const MultiVehicleMap = ({ vehicles, selectedVehicleId, onVehicleSelect }
       if (vehicle.current_location) {
         const loc = parseLocation(vehicle.current_location);
         if (loc.lat !== 0 && loc.lng !== 0) {
-          centerLat = loc.lat || 0;
-          centerLng = loc.lng || 0;
+          centerLat = loc.lat;
+          centerLng = loc.lng;
           break;
         }
       }
@@ -170,10 +172,7 @@ export const MultiVehicleMap = ({ vehicles, selectedVehicleId, onVehicleSelect }
         
         {/* Show all vehicles */}
         {vehicles.map((vehicle) => {
-          if (!vehicle) return null;
-          
-          // Skip vehicles without location data
-          if (!vehicle.current_location) return null;
+          if (!vehicle || !vehicle.current_location) return null;
           
           const loc = parseLocation(vehicle.current_location);
           if (loc.lat === 0 && loc.lng === 0) return null;
@@ -181,7 +180,7 @@ export const MultiVehicleMap = ({ vehicles, selectedVehicleId, onVehicleSelect }
           return (
             <Marker 
               key={vehicle.id}
-              position={[loc.lat || 0, loc.lng || 0]}
+              position={[loc.lat, loc.lng]}
               eventHandlers={onVehicleSelect ? {
                 click: () => onVehicleSelect(vehicle.id)
               } : undefined}

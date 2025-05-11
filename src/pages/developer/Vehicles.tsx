@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabase";
-import { Vehicle } from "@/types";
+import { Vehicle, Location } from "@/types";
 import { toast } from "sonner";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -65,6 +65,7 @@ const DeveloperVehicles = () => {
             admin_uid: vehicle.admin_uid,
             model: vehicle.model,
             type: vehicle.type || 'car',
+            assigned_devices: vehicle.assigned_devices || [],
           }));
           
           // For each vehicle, get the latest position from vehicle_positions via devices
@@ -430,7 +431,7 @@ const DeveloperVehicles = () => {
                           </Badge>
                         </TableCell>
                         <TableCell>
-                          {vehicle.current_location && vehicle.current_location.lat !== undefined ? (
+                          {vehicle.current_location ? (
                             `${vehicle.current_location.lat.toFixed(6)}, 
                             ${vehicle.current_location.lng.toFixed(6)}`
                           ) : (
