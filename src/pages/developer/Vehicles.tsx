@@ -117,9 +117,20 @@ const DeveloperVehicles = () => {
     
     fetchVehicles();
     intervalId = setInterval(fetchVehicles, 1000); // Auto-refresh every 1 second
+
+    // Fetch data when tab becomes visible
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        fetchVehicles();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
     return () => {
       if (intervalId) clearInterval(intervalId);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
+
     
     // Set up real-time subscription for vehicle_positions
     const positionsSubscription = supabase
