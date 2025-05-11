@@ -57,16 +57,13 @@ const AdminDevelopers = () => {
   useEffect(() => {
     const fetchDevelopers = async () => {
       if (!user) return;
-      
       setLoading(true);
       try {
         const { data, error } = await supabase
           .from('developers')
           .select('*')
           .eq('admin_uid', user.id);
-          
         if (error) throw error;
-        
         const mappedDevelopers = (data || []).map(mapDeveloper);
         setDevelopers(mappedDevelopers);
         setFilteredDevelopers(mappedDevelopers);
@@ -77,9 +74,9 @@ const AdminDevelopers = () => {
         setLoading(false);
       }
     };
-    
+
     fetchDevelopers();
-    
+
     // Set up subscription for real-time updates
     const developersSubscription = supabase
       .channel('developers_changes')
@@ -103,10 +100,16 @@ const AdminDevelopers = () => {
         }
       })
       .subscribe();
-    
+
+    // Set up interval for auto-refresh
+    const intervalId = setInterval(() => {
+      fetchDevelopers();
+    }, 30000); // 30 seconds
+
     // Cleanup
     return () => {
       developersSubscription.unsubscribe();
+      clearInterval(intervalId);
     };
   }, [user]);
   

@@ -66,7 +66,6 @@ const AdminUsers = () => {
   useEffect(() => {
     const fetchData = async () => {
       if (!user) return;
-      
       setLoading(true);
       try {
         // Fetch users managed by this admin
@@ -74,20 +73,15 @@ const AdminUsers = () => {
           .from('users')
           .select('*')
           .eq('admin_uid', user.id);
-          
         if (userError) throw userError;
-        
         setUsers(userData || []);
         setFilteredUsers(userData || []);
-        
         // Fetch available vehicles
         const { data: vehicleData, error: vehicleError } = await supabase
           .from('vehicles')
           .select('id, plate_number')
           .eq('admin_uid', user.id);
-          
         if (vehicleError) throw vehicleError;
-        
         setAvailableVehicles(vehicleData || []);
       } catch (error) {
         console.error("Error fetching data:", error);
@@ -96,9 +90,9 @@ const AdminUsers = () => {
         setLoading(false);
       }
     };
-    
+
     fetchData();
-    
+
     // Set up subscription for real-time updates
     const usersSubscription = supabase
       .channel('users_changes')
@@ -133,10 +127,16 @@ const AdminUsers = () => {
         }
       })
       .subscribe();
-      
-    // Cleanup subscription
+
+    // Set up interval for auto-refresh
+    const intervalId = setInterval(() => {
+      fetchData();
+    }, 30000); // 30 seconds
+
+    // Cleanup subscription and interval
     return () => {
       usersSubscription.unsubscribe();
+      clearInterval(intervalId);
     };
   }, [user]);
   
