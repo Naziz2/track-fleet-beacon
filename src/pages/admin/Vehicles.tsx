@@ -29,7 +29,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Search, MoreHorizontal, Plus, Trash, Edit } from "lucide-react";
 import {
@@ -41,6 +40,14 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { VehicleMap, MultiVehicleMap } from "@/components/VehicleMap";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
 
 const AdminVehicles = () => {
   const { user } = useAuth();
@@ -58,14 +65,9 @@ const AdminVehicles = () => {
   const [model, setModel] = useState("");
   const [vehicleType, setVehicleType] = useState("car");
   const [status, setStatus] = useState<'active' | 'inactive' | 'maintenance'>('active');
-  const [currentLocation, setCurrentLocation] = useState({
-    lat: 33.5731,
-    lng: -7.5898
-  });
   const [assignedDevelopers, setAssignedDevelopers] = useState<string[]>([]);
   
-  // Mode for the map view (view or add)
-  const [mapMode, setMapMode] = useState<'view' | 'add'>('view');
+  // Mode for the map view
   const [mapDialogOpen, setMapDialogOpen] = useState(false);
   const [selectedVehicleForMap, setSelectedVehicleForMap] = useState<string | undefined>(undefined);
   
@@ -165,7 +167,6 @@ const AdminVehicles = () => {
       setModel(selectedVehicle.model || "");
       setVehicleType(selectedVehicle.type || "car");
       setStatus(selectedVehicle.status);
-      setCurrentLocation(selectedVehicle.current_location);
       
       // Get assigned developers for this vehicle
       const assigned = developers
@@ -184,10 +185,6 @@ const AdminVehicles = () => {
     setModel("");
     setVehicleType("car");
     setStatus('active');
-    setCurrentLocation({
-      lat: 33.5731,
-      lng: -7.5898
-    });
     setAssignedDevelopers([]);
   };
   
@@ -223,7 +220,6 @@ const AdminVehicles = () => {
             model: model,
             type: vehicleType,
             status,
-            current_location: currentLocation,
           })
           .eq('id', selectedVehicle.id);
           
@@ -241,8 +237,6 @@ const AdminVehicles = () => {
             model: model,
             type: vehicleType,
             status,
-            current_location: currentLocation,
-            history: [{ ...currentLocation, timestamp: new Date().toISOString() }],
             admin_uid: user.id
           });
           
@@ -334,13 +328,6 @@ const AdminVehicles = () => {
   // Open map view for a specific vehicle
   const handleOpenMap = (vehicleId: string) => {
     setSelectedVehicleForMap(vehicleId);
-    setMapMode('view');
-    setMapDialogOpen(true);
-  };
-  
-  // Open map to add a location
-  const handleOpenLocationPicker = () => {
-    setMapMode('add');
     setMapDialogOpen(true);
   };
 
@@ -564,75 +551,32 @@ const AdminVehicles = () => {
                   </SelectContent>
                 </Select>
               </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label className="text-right">Location</Label>
-                <div className="col-span-3 flex gap-2 items-center">
-                  <div className="grid gap-1">
-                    <Label htmlFor="lat" className="text-xs">Latitude</Label>
-                    <Input
-                      id="lat"
-                      type="number"
-                      step="0.000001"
-                      value={currentLocation.lat}
-                      onChange={(e) => setCurrentLocation({
-                        ...currentLocation,
-                        lat: parseFloat(e.target.value) || 0
-                      })}
-                      className="col-span-3"
-                      required
-                    />
-                  </div>
-                  <div className="grid gap-1">
-                    <Label htmlFor="lng" className="text-xs">Longitude</Label>
-                    <Input
-                      id="lng"
-                      type="number"
-                      step="0.000001"
-                      value={currentLocation.lng}
-                      onChange={(e) => setCurrentLocation({
-                        ...currentLocation,
-                        lng: parseFloat(e.target.value) || 0
-                      })}
-                      className="col-span-3"
-                      required
-                    />
-                  </div>
-                  <Button 
-                    type="button" 
-                    variant="outline" 
-                    size="sm" 
-                    className="mt-auto"
-                    onClick={handleOpenLocationPicker}
-                  >
-                    Pick
-                  </Button>
-                </div>
-              </div>
               
               {developers.length > 0 && (
                 <div className="grid grid-cols-4 items-start gap-4">
                   <Label className="text-right pt-2">Assign To</Label>
-                  <div className="col-span-3 space-y-2">
-                    {developers.map((developer) => (
-                      <div key={developer.id} className="flex items-center space-x-2">
-                        <Checkbox 
-                          id={`developer-${developer.id}`}
-                          checked={assignedDevelopers.includes(developer.id)}
-                          onCheckedChange={(checked) => {
-                            if (checked) {
-                              setAssignedDevelopers([...assignedDevelopers, developer.id]);
-                            } else {
-                              setAssignedDevelopers(
-                                assignedDevelopers.filter(id => id !== developer.id)
-                              );
-                            }
-                          }}
-                        />
-                        <Label htmlFor={`developer-${developer.id}`} className="text-sm font-normal">
-                          {developer.first_name} {developer.last_name} ({developer.email})
-                        </Label>
-                      </div>
-                    ))}
+                  <div className="col-span-3">
+                    <Select
+                      value={assignedDevelopers.length > 0 ? assignedDevelopers[0] : ""}
+                      onValueChange={(value) => {
+                        if (value) {
+                          setAssignedDevelopers([value]);
+                        } else {
+                          setAssignedDevelopers([]);
+                        }
+                      }}
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Select a developer" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {developers.map(developer => (
+                          <SelectItem key={developer.id} value={developer.id}>
+                            {developer.first_name} {developer.last_name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
               )}
@@ -648,56 +592,18 @@ const AdminVehicles = () => {
       <Dialog open={mapDialogOpen} onOpenChange={setMapDialogOpen}>
         <DialogContent className="sm:max-w-[700px] max-h-[80vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>
-              {mapMode === 'view' 
-                ? 'Vehicle Location' 
-                : 'Pick Vehicle Location'}
-            </DialogTitle>
+            <DialogTitle>Vehicle Location</DialogTitle>
           </DialogHeader>
           <div className="h-[500px]">
             <MultiVehicleMap 
               vehicles={
-                mapMode === 'view' && selectedVehicleForMap
+                selectedVehicleForMap
                   ? vehicles.filter(v => v.id === selectedVehicleForMap)
                   : []
               }
               selectedVehicleId={selectedVehicleForMap}
             />
           </div>
-          {mapMode === 'add' && (
-            <div className="text-center">
-              <p className="text-sm text-muted-foreground mb-4">
-                Click on the map to select a location
-              </p>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="map-lat">Latitude</Label>
-                  <Input
-                    id="map-lat"
-                    value={currentLocation.lat}
-                    onChange={(e) => setCurrentLocation({
-                      ...currentLocation,
-                      lat: parseFloat(e.target.value) || 0
-                    })}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="map-lng">Longitude</Label>
-                  <Input
-                    id="map-lng"
-                    value={currentLocation.lng}
-                    onChange={(e) => setCurrentLocation({
-                      ...currentLocation,
-                      lng: parseFloat(e.target.value) || 0
-                    })}
-                  />
-                </div>
-              </div>
-              <Button className="mt-4" onClick={() => setMapDialogOpen(false)}>
-                Confirm Location
-              </Button>
-            </div>
-          )}
         </DialogContent>
       </Dialog>
     </>
