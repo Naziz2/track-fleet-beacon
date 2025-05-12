@@ -1,5 +1,8 @@
 
-import React from "react";
+import React, { useState, useEffect } from "react";
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/lib/supabase";
+import { Vehicle, mapVehicle } from "@/types";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -7,6 +10,10 @@ import { ShieldCheck, Car, AlertTriangle } from "lucide-react";
 import { MultiVehicleMap } from "@/components/VehicleMap";
 
 const DeveloperPlan = () => {
+  const { user } = useAuth();
+  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+  const [loading, setLoading] = useState(true);
+  
   // In a real application, this would come from the user's profile in Supabase
   const currentPlan = {
     name: "Professional",
@@ -47,24 +54,86 @@ const DeveloperPlan = () => {
     },
   ];
   
-  // Sample vehicles for the mini map
-  const sampleVehicles = [
+  useEffect(() => {
+    const fetchVehicles = async () => {
+      if (!user) return;
+      setLoading(true);
+      
+      try {
+        // Fetch vehicles associated with this developer
+        const { data: developerData, error: developerError } = await supabase
+          .from('developers')
+          .select('assigned_vehicle_ids')
+          .eq('id', user.id)
+          .single();
+          
+        if (developerError) throw developerError;
+        
+        if (developerData?.assigned_vehicle_ids?.length) {
+          // Fetch the actual vehicles
+          const { data: vehicleData, error: vehicleError } = await supabase
+            .from('vehicles')
+            .select('*')
+            .in('id', developerData.assigned_vehicle_ids);
+            
+          if (vehicleError) throw vehicleError;
+          
+          setVehicles(vehicleData?.map(mapVehicle) || []);
+        }
+      } catch (error) {
+        console.error("Error fetching vehicles:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchVehicles();
+    
+    // Set up real-time subscription for vehicles
+    const vehicleChannel = supabase
+      .channel('vehicles_changes')
+      .on('postgres_changes', { 
+        event: '*', 
+        schema: 'public', 
+        table: 'vehicles' 
+      }, async (payload) => {
+        // Refetch vehicles when there are changes
+        fetchVehicles();
+      })
+      .subscribe();
+      
+    return () => {
+      supabase.removeChannel(vehicleChannel);
+    };
+  }, [user]);
+  
+  // Use real vehicles if available, otherwise use sample data
+  const displayVehicles = vehicles.length > 0 ? vehicles : [
     {
       id: "sample-1",
       plate_number: "ABC123",
       status: "active",
+      admin_uid: "",
+      type: "car",
+      model: "Sample Car",
       current_location: { lat: 37.7749, lng: -122.4194 }
     },
     {
       id: "sample-2",
       plate_number: "DEF456",
       status: "active",
+      admin_uid: "",
+      type: "car",
+      model: "Sample Car",
       current_location: { lat: 37.7809, lng: -122.4129 }
     },
     {
       id: "sample-3",
       plate_number: "GHI789",
       status: "inactive",
+      admin_uid: "",
+      type: "car",
+      model: "Sample Car",
       current_location: { lat: 37.7700, lng: -122.4260 }
     }
   ];
@@ -108,10 +177,12 @@ const DeveloperPlan = () => {
             
             <div className="h-[200px] rounded-lg border overflow-hidden">
               <div className="h-full w-full">
-                <MultiVehicleMap vehicles={sampleVehicles} />
+                <MultiVehicleMap vehicles={displayVehicles} />
               </div>
               <div className="text-center text-xs text-muted-foreground mt-2">
-                Sample fleet visualization with your current plan capacity
+                {loading ? "Loading vehicles..." : 
+                  vehicles.length > 0 ? "Your current fleet vehicles" : 
+                  "Sample fleet visualization with your current plan capacity"}
               </div>
             </div>
           </div>

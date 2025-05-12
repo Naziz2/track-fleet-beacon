@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabase";
@@ -76,6 +75,7 @@ const AdminUsers = () => {
         if (userError) throw userError;
         setUsers(userData || []);
         setFilteredUsers(userData || []);
+        
         // Fetch available vehicles
         const { data: vehicleData, error: vehicleError } = await supabase
           .from('vehicles')
@@ -92,50 +92,73 @@ const AdminUsers = () => {
     };
 
     fetchData();
-
+    
     // Set up subscription for real-time updates
-    const usersSubscription = supabase
+    const usersChannel = supabase
       .channel('users_changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'users' }, (payload) => {
-        if (payload.eventType === 'UPDATE' || payload.eventType === 'INSERT') {
-          const userData = payload.new as Customer;
-          if (userData.admin_uid === user?.id) {
-            setUsers(prev => {
-              const exists = prev.find(u => u.id === userData.id);
-              if (exists) {
-                return prev.map(u => u.id === userData.id ? userData : u);
-              } else {
-                return [...prev, userData];
-              }
-            });
-            setFilteredUsers(prev => {
-              const exists = prev.find(u => u.id === userData.id);
-              if (exists) {
-                return prev.map(u => u.id === userData.id ? userData : u);
-              } else {
-                if (searchTerm.trim() === '') {
-                  return [...prev, userData];
-                }
-                return prev;
-              }
-            });
+      .on('postgres_changes', { 
+        event: '*', 
+        schema: 'public', 
+        table: 'users',
+        filter: `admin_uid=eq.${user?.id}`
+      }, (payload) => {
+        if (payload.eventType === 'INSERT') {
+          const newUser = payload.new as Customer;
+          setUsers(prev => [...prev, newUser]);
+          // Update filtered users only if search is empty or the new user matches the search
+          if (searchTerm === '' || 
+              newUser.first_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+              newUser.last_name.toLowerCase().includes(searchTerm.toLowerCase())) {
+            setFilteredUsers(prev => [...prev, newUser]);
           }
-        } else if (payload.eventType === 'DELETE') {
+          toast.success("New user added");
+        } 
+        else if (payload.eventType === 'UPDATE') {
+          const updatedUser = payload.new as Customer;
+          setUsers(prev => 
+            prev.map(u => u.id === updatedUser.id ? updatedUser : u)
+          );
+          setFilteredUsers(prev => 
+            prev.map(u => u.id === updatedUser.id ? updatedUser : u)
+          );
+          toast.success("User updated");
+        } 
+        else if (payload.eventType === 'DELETE') {
           const deletedUser = payload.old as Customer;
           setUsers(prev => prev.filter(u => u.id !== deletedUser.id));
           setFilteredUsers(prev => prev.filter(u => u.id !== deletedUser.id));
+          toast.success("User deleted");
+        }
+      })
+      .subscribe();
+      
+    // Set up subscription for vehicles changes
+    const vehiclesChannel = supabase
+      .channel('vehicles_changes')
+      .on('postgres_changes', { 
+        event: '*', 
+        schema: 'public', 
+        table: 'vehicles',
+        filter: `admin_uid=eq.${user?.id}`
+      }, (payload) => {
+        if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE' || payload.eventType === 'DELETE') {
+          // Refetch vehicles to get updated list
+          supabase
+            .from('vehicles')
+            .select('id, plate_number')
+            .eq('admin_uid', user?.id)
+            .then(({ data }) => {
+              if (data) setAvailableVehicles(data);
+            });
         }
       })
       .subscribe();
 
-    // Set up interval for auto-refresh
-  
-
-    // Cleanup subscription and interval
     return () => {
-      usersSubscription.unsubscribe();
+      supabase.removeChannel(usersChannel);
+      supabase.removeChannel(vehiclesChannel);
     };
-  }, [user]);
+  }, [user, searchTerm]);
   
   // Handle search
   useEffect(() => {
@@ -224,7 +247,7 @@ const AdminUsers = () => {
           
         if (error) throw error;
         
-        toast.success("User updated successfully");
+        // Real-time will handle the UI update
       } else {
         // Create new user with UUID
         // Generate a UUID directly
@@ -240,11 +263,7 @@ const AdminUsers = () => {
           
         if (error) throw error;
         
-        toast.success("User added successfully");
-        
-        // Update local state
-        const newUser = { id: newId, ...userData };
-        setUsers(prev => [...prev, newUser as Customer]);
+        // Real-time will handle the UI update
       }
       
       setDialogOpen(false);
@@ -271,7 +290,7 @@ const AdminUsers = () => {
         
       if (error) throw error;
       
-      toast.success("User deleted successfully");
+      // Real-time will handle the UI update
     } catch (error) {
       console.error("Error deleting user:", error);
       toast.error("Failed to delete user");

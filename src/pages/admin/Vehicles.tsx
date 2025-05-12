@@ -1,10 +1,9 @@
-
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabase";
 import { Vehicle, mapVehicle, Developer } from "@/types";
 import { toast } from "sonner";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -40,21 +39,13 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { VehicleMap, MultiVehicleMap } from "@/components/VehicleMap";
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
 
 const AdminVehicles = () => {
   const { user } = useAuth();
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [filteredVehicles, setFilteredVehicles] = useState<Vehicle[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
-  // Removed loading state as per requirements
+  const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(null);
@@ -70,23 +61,27 @@ const AdminVehicles = () => {
   // Mode for the map view
   const [mapDialogOpen, setMapDialogOpen] = useState(false);
   const [selectedVehicleForMap, setSelectedVehicleForMap] = useState<string | undefined>(undefined);
-const [selectedDeveloperForMap, setSelectedDeveloperForMap] = useState<string | undefined>(undefined);
+  const [selectedDeveloperForMap, setSelectedDeveloperForMap] = useState<string | undefined>(undefined);
+  
+  // Device name/serial for assignment
+  const [deviceName, setDeviceName] = useState("");
   
   // Fetch vehicles and developers
   useEffect(() => {
-    let intervalId: NodeJS.Timeout | null = null;
-    const fetchVehicles = async () => {
+    const fetchData = async () => {
       if (!user) return;
+      setLoading(true);
       try {
-        const { data, error } = await supabase
+        // Fetch vehicles
+        const { data: vehicleData, error: vehicleError } = await supabase
           .from('vehicles')
           .select('*')
           .eq('admin_uid', user.id);
           
-        if (error) throw error;
+        if (vehicleError) throw vehicleError;
         
         // Convert supabase data to our Vehicle type using the mapVehicle helper
-        const mappedData = (data || []).map(mapVehicle);
+        const mappedData = (vehicleData || []).map(mapVehicle);
         setVehicles(mappedData);
         setFilteredVehicles(mappedData);
 
@@ -103,52 +98,71 @@ const [selectedDeveloperForMap, setSelectedDeveloperForMap] = useState<string | 
         console.error("Error fetching vehicles:", error);
         toast.error("Failed to load vehicles");
       } finally {
-        // Removed loading state as per requirements
+        setLoading(false);
       }
     };
     
-    // Fetch once on mount or when user changes
-    fetchVehicles();
-
-    // Cleanup
-    return () => {};
-
+    fetchData();
     
-    // Set up subscription for real-time updates
-    const vehiclesSubscription = supabase
+    // Set up real-time subscription for vehicles
+    const vehiclesChannel = supabase
       .channel('vehicles_changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'vehicles' }, (payload) => {
-        if (payload.eventType === 'UPDATE') {
-          const updatedVehicle = payload.new as Vehicle;
-          setVehicles(prev => 
-            prev.map(vehicle => 
-              vehicle.id === updatedVehicle.id ? updatedVehicle : vehicle
-            )
-          );
-          setFilteredVehicles(prev => 
-            prev.map(vehicle => 
-              vehicle.id === updatedVehicle.id ? updatedVehicle : vehicle
-            )
-          );
-        } else if (payload.eventType === 'INSERT') {
-          const newVehicle = payload.new as Vehicle;
-          if (newVehicle.admin_uid === user?.id) {
-            setVehicles(prev => [...prev, newVehicle]);
+      .on('postgres_changes', { 
+        event: '*', 
+        schema: 'public', 
+        table: 'vehicles',
+        filter: `admin_uid=eq.${user?.id}`
+      }, (payload) => {
+        if (payload.eventType === 'INSERT') {
+          const newVehicle = mapVehicle(payload.new as any);
+          setVehicles(prev => [...prev, newVehicle]);
+          // Update filtered vehicles only if search is empty or the new vehicle matches the search
+          if (searchTerm === '' || 
+              newVehicle.plate_number.toLowerCase().includes(searchTerm.toLowerCase())) {
             setFilteredVehicles(prev => [...prev, newVehicle]);
           }
-        } else if (payload.eventType === 'DELETE') {
+          toast.success("Vehicle added successfully");
+        } 
+        else if (payload.eventType === 'UPDATE') {
+          const updatedVehicle = mapVehicle(payload.new as any);
+          setVehicles(prev => 
+            prev.map(v => v.id === updatedVehicle.id ? updatedVehicle : v)
+          );
+          setFilteredVehicles(prev => 
+            prev.map(v => v.id === updatedVehicle.id ? updatedVehicle : v)
+          );
+          toast.success("Vehicle updated successfully");
+        } 
+        else if (payload.eventType === 'DELETE') {
           const deletedVehicle = payload.old as Vehicle;
           setVehicles(prev => prev.filter(v => v.id !== deletedVehicle.id));
           setFilteredVehicles(prev => prev.filter(v => v.id !== deletedVehicle.id));
+          toast.success("Vehicle deleted successfully");
         }
       })
       .subscribe();
       
-    // Cleanup subscription
+    // Set up subscription for developers changes (for vehicle assignments)
+    const developersChannel = supabase
+      .channel('developers_changes')
+      .on('postgres_changes', { 
+        event: 'UPDATE', 
+        schema: 'public', 
+        table: 'developers',
+        filter: `admin_uid=eq.${user?.id}`
+      }, (payload) => {
+        // Update developers list when assignments change
+        setDevelopers(prev => 
+          prev.map(d => d.id === payload.new.id ? {...d, ...payload.new} : d)
+        );
+      })
+      .subscribe();
+    
     return () => {
-      vehiclesSubscription.unsubscribe();
+      supabase.removeChannel(vehiclesChannel);
+      supabase.removeChannel(developersChannel);
     };
-  }, [user]);
+  }, [user, searchTerm]);
   
   // Handle search
   useEffect(() => {
@@ -207,9 +221,6 @@ const [selectedDeveloperForMap, setSelectedDeveloperForMap] = useState<string | 
     setDialogOpen(true);
   };
   
-  // Device name/serial for assignment
-  const [deviceName, setDeviceName] = useState("");
-
   // Handle form submit
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -234,7 +245,7 @@ const [selectedDeveloperForMap, setSelectedDeveloperForMap] = useState<string | 
           
         if (error) throw error;
         
-        toast.success("Vehicle updated successfully");
+        // Real-time will handle the UI update
       } else {
         // Create new vehicle
         const vehicleId = crypto.randomUUID();
@@ -261,17 +272,26 @@ const [selectedDeveloperForMap, setSelectedDeveloperForMap] = useState<string | 
           if (deviceError) throw deviceError;
         }
 
-        toast.success("Vehicle added successfully");
-        
-        // If developers are assigned, update them
-        if (assignedDevelopers.length > 0) {
-          await updateDeveloperAssignments(vehicleId);
-        }
+        // Real-time will handle the UI update
       }
       
       // For editing, update developer assignments
       if (isEditing && selectedVehicle) {
         await updateDeveloperAssignments(selectedVehicle.id);
+      }
+      // If this is a new vehicle and developers are assigned, update them
+      else if (assignedDevelopers.length > 0) {
+        // First need to get the new vehicle's ID
+        const { data: newVehicle } = await supabase
+          .from('vehicles')
+          .select('id')
+          .eq('plate_number', plateNumber)
+          .eq('admin_uid', user.id)
+          .single();
+          
+        if (newVehicle) {
+          await updateDeveloperAssignments(newVehicle.id);
+        }
       }
       
       setDialogOpen(false);
@@ -343,7 +363,7 @@ const [selectedDeveloperForMap, setSelectedDeveloperForMap] = useState<string | 
         .eq('id', vehicleId);
       if (error) throw error;
 
-      toast.success("Vehicle deleted successfully");
+      // Real-time will handle the UI update
     } catch (error) {
       console.error("Error deleting vehicle:", error);
       toast.error("Failed to delete vehicle");
@@ -355,7 +375,6 @@ const [selectedDeveloperForMap, setSelectedDeveloperForMap] = useState<string | 
     setSelectedVehicleForMap(vehicleId);
     setMapDialogOpen(true);
   };
-
 
   return (
     <>
@@ -380,14 +399,10 @@ const [selectedDeveloperForMap, setSelectedDeveloperForMap] = useState<string | 
           </div>
         </div>
 
-        {vehicles.length === 0 ? (
+        {loading ? (
           <Card>
             <CardContent className="pt-6 text-center">
-              <p className="text-muted-foreground py-8">No vehicles found. Add your first vehicle to get started.</p>
-              <Button onClick={() => handleOpenDialog()} className="mt-2">
-                <Plus className="h-4 w-4 mr-2" />
-                Add Vehicle
-              </Button>
+              <p className="text-muted-foreground py-8">Loading...</p>
             </CardContent>
           </Card>
         ) : (

@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabase";
@@ -78,38 +77,48 @@ const AdminDevelopers = () => {
     fetchDevelopers();
 
     // Set up subscription for real-time updates
-    const developersSubscription = supabase
+    const developersChannel = supabase
       .channel('developers_changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'developers' }, (payload) => {
-        if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
-          const developer = mapDeveloper(payload.new as any);
-          if (developer.admin_uid === user?.id) {
-            setDevelopers(prev => {
-              const exists = prev.find(d => d.id === developer.id);
-              if (exists) {
-                return prev.map(d => d.id === developer.id ? developer : d);
-              } else {
-                return [...prev, developer];
-              }
-            });
+      .on('postgres_changes', { 
+        event: '*', 
+        schema: 'public', 
+        table: 'developers',
+        filter: `admin_uid=eq.${user?.id}`
+      }, (payload) => {
+        if (payload.eventType === 'INSERT') {
+          const newDev = mapDeveloper(payload.new as any);
+          setDevelopers(prev => [...prev, newDev]);
+          // Update filtered developers only if search is empty or the new dev matches the search
+          if (searchTerm === '' || 
+              newDev.first_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+              newDev.last_name.toLowerCase().includes(searchTerm.toLowerCase())) {
+            setFilteredDevelopers(prev => [...prev, newDev]);
           }
-        } else if (payload.eventType === 'DELETE') {
+          toast.success("New developer added");
+        } 
+        else if (payload.eventType === 'UPDATE') {
+          const updatedDev = mapDeveloper(payload.new as any);
+          setDevelopers(prev => 
+            prev.map(d => d.id === updatedDev.id ? updatedDev : d)
+          );
+          setFilteredDevelopers(prev => 
+            prev.map(d => d.id === updatedDev.id ? updatedDev : d)
+          );
+          toast.success("Developer updated");
+        } 
+        else if (payload.eventType === 'DELETE') {
           const deletedDev = payload.old as Developer;
           setDevelopers(prev => prev.filter(d => d.id !== deletedDev.id));
           setFilteredDevelopers(prev => prev.filter(d => d.id !== deletedDev.id));
+          toast.success("Developer deleted");
         }
       })
       .subscribe();
 
-    // Fetch once on mount or when user changes
-    fetchDevelopers();
-
-    // Cleanup
     return () => {
-      developersSubscription.unsubscribe();
+      supabase.removeChannel(developersChannel);
     };
-
-  }, [user]);
+  }, [user, searchTerm]);
   
   // Handle search
   useEffect(() => {
@@ -203,7 +212,8 @@ const AdminDevelopers = () => {
           
         if (error) throw error;
         
-        toast.success("Developer updated successfully");
+        // Real-time will handle the UI update
+        setDialogOpen(false);
       } else {
         // Create a new user through sign-up
         const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
@@ -243,7 +253,7 @@ const AdminDevelopers = () => {
         
         if (devError) throw devError;
         
-        toast.success("Developer account created successfully");
+        // Real-time will handle the UI update
         setDialogOpen(false);
       }
     } catch (error: any) {
@@ -271,9 +281,7 @@ const AdminDevelopers = () => {
         
       if (error) throw error;
       
-      // Note: This doesn't delete the auth user
-      
-      toast.success("Developer deleted successfully");
+      // Real-time will handle the UI update
     } catch (error) {
       console.error("Error deleting developer:", error);
       toast.error("Failed to delete developer");
