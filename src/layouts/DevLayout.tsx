@@ -1,171 +1,144 @@
-
 import { useState } from "react";
-import { Outlet, NavLink, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
-import { Button } from "@/components/ui/button";
-import { 
-  LayoutDashboard, 
-  Car, 
-  Users, 
-  User, 
-  BellRing,
-  Menu, 
-  LogOut,
-  X
-} from "lucide-react";
+import { useRouter } from 'next/router';
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet"
+import { Button } from "@/components/ui/button"
+import {
+  ChevronLeft,
+  Menu,
+} from 'lucide-react';
+import Link from "next/link";
 import { cn } from "@/lib/utils";
-import { toast } from "sonner";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { useToast } from "@/components/ui/use-toast";
 
-const DevLayout = () => {
-  const { signOut, user } = useAuth();
-  const navigate = useNavigate();
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+// Import the AlertProcessor
+import AlertProcessor from "@/components/AlertProcessor";
+
+const DevLayout = ({ children }: { children: React.ReactNode }) => {
+  const { user, signOut } = useAuth();
+  const router = useRouter();
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const { toast } = useToast();
 
   const handleSignOut = async () => {
-    await signOut();
-    toast.success("Logged out successfully");
-    navigate("/login");
+    try {
+      await signOut();
+      router.push('/login');
+    } catch (error) {
+      console.error("Sign out failed:", error);
+      toast({
+        title: "Sign out failed",
+        description: "Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
-  const navItems = [
-    {
-      title: "Dashboard",
-      href: "/developer/dashboard",
-      icon: <LayoutDashboard className="h-5 w-5" />,
-    },
-    {
-      title: "Vehicles",
-      href: "/developer/vehicles",
-      icon: <Car className="h-5 w-5" />,
-    },
-    {
-      title: "Users",
-      href: "/developer/users",
-      icon: <Users className="h-5 w-5" />,
-    },
-    {
-      title: "Plan",
-      href: "/developer/plan",
-      icon: <LayoutDashboard className="h-5 w-5" />,
-    },
-    {
-      title: "Payment",
-      href: "/developer/payment",
-      icon: <Car className="h-5 w-5" />,
-    },
-    {
-      title: "Alerts",
-      href: "/developer/alerts",
-      icon: <BellRing className="h-5 w-5" />,
-    },
-    {
-      title: "Profile",
-      href: "/developer/profile",
-      icon: <User className="h-5 w-5" />,
-    },
-  ];
+  const toggleMenu = () => {
+    setIsMenuOpen(!isMenuOpen);
+  };
 
   return (
-    <div className="flex h-screen bg-gray-50">
-      {/* Mobile sidebar toggle */}
-      <div className="fixed top-4 left-4 z-50 lg:hidden">
-        <Button 
-          variant="outline" 
-          size="icon" 
-          onClick={() => setSidebarOpen(!sidebarOpen)}
-          className="rounded-full bg-white shadow-md"
-        >
-          {sidebarOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-        </Button>
-      </div>
+    <div className="h-full flex">
+      <AlertProcessor />
+      <Sheet open={isMenuOpen} onOpenChange={setIsMenuOpen}>
+        <SheetTrigger asChild>
+          <Button
+            type="button"
+            variant="ghost"
+            className="md:hidden absolute left-4 top-4"
+            onClick={toggleMenu}
+          >
+            <Menu className="w-5 h-5" />
+          </Button>
+        </SheetTrigger>
+        <SheetContent side="left" className="w-64 p-0 pt-6">
+          <SheetHeader className="pl-6 pb-4">
+            <SheetTitle>
+              <Link href="/" className="flex items-center gap-2">
+                <ChevronLeft className="w-4 h-4" />
+                Dashboard
+              </Link>
+            </SheetTitle>
+            <SheetDescription>
+              Navigate your workspace.
+            </SheetDescription>
+          </SheetHeader>
+          <div className="py-4">
+            <ul className="space-y-1">
+              <li>
+                <Link href="/developer/alerts" className="block px-6 py-2 hover:bg-secondary">
+                  Alerts
+                </Link>
+              </li>
+              {/* Add more links here as needed */}
+            </ul>
+          </div>
+        </SheetContent>
+      </Sheet>
 
-      {/* Sidebar */}
-      <aside 
-        className={cn(
-          "fixed top-0 left-0 z-40 h-full w-64 bg-white border-r transform transition-transform duration-300 ease-in-out lg:translate-x-0",
-          sidebarOpen ? "translate-x-0" : "-translate-x-full"
-        )}
-      >
-        <div className="flex flex-col h-full">
-          {/* Logo */}
-          <div className="flex items-center justify-center h-16 border-b">
-            <h1 className="text-xl font-bold text-fleet-600">
-              autotrace <span className="text-sm font-normal text-gray-500">Developer</span>
-            </h1>
-          </div>
-          
-          {/* Navigation */}
-          <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
-            {navItems.map((item) => (
-              <NavLink
-                key={item.href}
-                to={item.href}
-                className={({ isActive }) => cn(
-                  "flex items-center px-4 py-2 rounded-lg",
-                  isActive 
-                    ? "bg-fleet-100 text-fleet-700" 
-                    : "text-gray-600 hover:bg-gray-100"
-                )}
-                onClick={() => {
-                  if (window.innerWidth < 1024) {
-                    setSidebarOpen(false);
-                  }
-                }}
-              >
-                {item.icon}
-                <span className="ml-3">{item.title}</span>
-              </NavLink>
-            ))}
-          </nav>
-          
-          {/* User & Logout */}
-          <div className="p-4 border-t">
-            <div className="flex items-center mb-4">
-              <Avatar className="h-8 w-8">
-                <AvatarFallback className="bg-fleet-500 text-white">
-                  {user?.email?.charAt(0).toUpperCase() || "U"}
-                </AvatarFallback>
-              </Avatar>
-              <div className="ml-3">
-                <p className="text-sm font-medium text-gray-700 truncate">
-                  {user?.email}
-                </p>
-                <p className="text-xs text-gray-500">Developer</p>
-              </div>
-            </div>
-            <Button 
-              variant="outline" 
-              className="w-full justify-start text-red-600 hover:text-red-700 hover:bg-red-50"
-              onClick={handleSignOut}
-            >
-              <LogOut className="w-4 h-4 mr-2" />
-              Sign Out
-            </Button>
-          </div>
+      {/* Desktop Sidebar */}
+      <aside className="hidden md:flex flex-col w-64 border-r bg-gray-50 dark:bg-gray-900 dark:border-gray-700">
+        <div className="p-4">
+          <Link href="/" className="block font-bold text-lg">
+            Dashboard
+          </Link>
         </div>
+        <nav className="flex-1">
+          <ul>
+            <li>
+              <Link href="/developer/alerts" className={cn("block px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-800", router.pathname === '/developer/alerts' ? 'font-semibold bg-gray-100 dark:bg-gray-800' : '')}>
+                Alerts
+              </Link>
+            </li>
+            {/* Add more links here as needed */}
+          </ul>
+        </nav>
       </aside>
 
-      {/* Main Content */}
-      <div className={cn(
-        "flex-1 flex flex-col transition-all duration-300 ease-in-out",
-        sidebarOpen ? "lg:ml-64" : "ml-0"
-      )}>
-        <main className="flex-1 p-4 md:p-6 overflow-y-auto">
-          <Outlet />
-        </main>
-        <footer className="py-4 px-6 border-t text-center text-sm text-gray-500">
-          &copy; {new Date().getFullYear()} autotrace. All rights reserved.
-        </footer>
-      </div>
+      <main className="flex-1 p-4">
+        {children}
+      </main>
 
-      {/* Overlay for mobile */}
-      {sidebarOpen && (
-        <div 
-          className="fixed inset-0 bg-black bg-opacity-50 z-30 lg:hidden"
-          onClick={() => setSidebarOpen(false)}
-        />
-      )}
+      {/* User Dropdown */}
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="ghost" className="relative h-8 w-8 rounded-full absolute right-4 top-4">
+            <Avatar className="h-8 w-8">
+              <AvatarImage src="https://github.com/shadcn.png" alt="@shadcn" />
+              <AvatarFallback>CN</AvatarFallback>
+            </Avatar>
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent className="w-56 mr-4">
+          <DropdownMenuLabel>My Account</DropdownMenuLabel>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem>
+            <Link href="/profile">
+              Profile
+            </Link>
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={handleSignOut}>
+            Log Out
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
     </div>
   );
 };

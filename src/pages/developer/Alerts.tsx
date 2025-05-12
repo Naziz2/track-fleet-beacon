@@ -167,6 +167,10 @@ const DeveloperAlerts = () => {
         return 'bg-amber-500';
       case 'maintenance':
         return 'bg-blue-500';
+      case 'terrain':
+        return 'bg-purple-500';
+      case 'driving':
+        return 'bg-orange-500';
       default:
         return 'bg-gray-500';
     }
@@ -207,6 +211,8 @@ const DeveloperAlerts = () => {
               <SelectItem value="speeding">Speeding</SelectItem>
               <SelectItem value="geofence">Geofence</SelectItem>
               <SelectItem value="maintenance">Maintenance</SelectItem>
+              <SelectItem value="terrain">Steep Terrain</SelectItem>
+              <SelectItem value="driving">Driving Behavior</SelectItem>
             </SelectContent>
           </Select>
         </div>

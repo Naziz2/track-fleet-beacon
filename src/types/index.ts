@@ -25,7 +25,7 @@ export interface Vehicle {
 export interface Alert {
   id: string;
   vehicle_id: string;
-  type: 'speeding' | 'geofence' | 'maintenance';
+  type: 'speeding' | 'geofence' | 'maintenance' | 'terrain' | 'driving';
   description: string;
   timestamp: string;
 }
@@ -102,7 +102,7 @@ export const mapAlert = (dbAlert: any): Alert => {
   return {
     id: dbAlert.id,
     vehicle_id: dbAlert.vehicle_id,
-    type: dbAlert.type as 'speeding' | 'geofence' | 'maintenance',
+    type: dbAlert.type as 'speeding' | 'geofence' | 'maintenance' | 'terrain' | 'driving',
     description: dbAlert.description,
     timestamp: dbAlert.timestamp
   };
