@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabase"; 
@@ -37,8 +38,42 @@ const AdminDashboard = () => {
           
         if (vehicleError) throw vehicleError;
         
-        // Map the vehicles data using our helper function
         const mappedVehicles = (vehicleData || []).map(mapVehicle);
+        
+        // For each vehicle, fetch its latest position
+        for (const vehicle of mappedVehicles) {
+          try {
+            // Get device IDs for this vehicle
+            const { data: deviceData } = await supabase
+              .from('devices')
+              .select('id')
+              .eq('vehicle_id', vehicle.id);
+              
+            if (deviceData && deviceData.length > 0) {
+              const deviceIds = deviceData.map((d: any) => d.id);
+              
+              // Get latest position for these devices
+              const { data: posData } = await supabase
+                .from('vehicle_positions')
+                .select('*')
+                .in('device_id', deviceIds)
+                .order('created_at', { ascending: false })
+                .limit(1);
+                
+              if (posData && posData.length > 0) {
+                // Add current location to the vehicle
+                vehicle.current_location = {
+                  lat: posData[0].latitude,
+                  lng: posData[0].longitude,
+                  timestamp: posData[0].created_at
+                };
+              }
+            }
+          } catch (err) {
+            console.error(`Error fetching position for vehicle ${vehicle.id}:`, err);
+          }
+        }
+        
         setVehicles(mappedVehicles);
         
         // Fetch alerts for vehicles managed by this admin
@@ -81,6 +116,45 @@ const AdminDashboard = () => {
       })
       .subscribe();
       
+    // Set up subscription for real-time updates on vehicle positions
+    const positionsSubscription = supabase
+      .channel('positions_changes')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'vehicle_positions' }, async (payload) => {
+        try {
+          const newPosition = payload.new as any;
+          
+          // Find which vehicle this belongs to
+          const { data: deviceData } = await supabase
+            .from('devices')
+            .select('vehicle_id')
+            .eq('id', newPosition.device_id)
+            .single();
+            
+          if (deviceData) {
+            const vehicleId = deviceData.vehicle_id;
+            
+            // Update vehicle's current location
+            setVehicles(prev => 
+              prev.map(vehicle => 
+                vehicle.id === vehicleId 
+                  ? {
+                      ...vehicle,
+                      current_location: {
+                        lat: newPosition.latitude,
+                        lng: newPosition.longitude,
+                        timestamp: newPosition.created_at
+                      }
+                    } 
+                  : vehicle
+              )
+            );
+          }
+        } catch (error) {
+          console.error("Error processing position update:", error);
+        }
+      })
+      .subscribe();
+      
     // Set up subscription for real-time updates on alerts
     const alertsSubscription = supabase
       .channel('alerts_changes')
@@ -96,6 +170,7 @@ const AdminDashboard = () => {
     return () => {
       vehiclesSubscription.unsubscribe();
       alertsSubscription.unsubscribe();
+      positionsSubscription.unsubscribe();
     };
   }, [user]);
 

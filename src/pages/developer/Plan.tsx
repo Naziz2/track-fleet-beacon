@@ -3,7 +3,8 @@ import React from "react";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ShieldCheck } from "lucide-react";
+import { ShieldCheck, Car, AlertTriangle } from "lucide-react";
+import { MultiVehicleMap } from "@/components/VehicleMap";
 
 const DeveloperPlan = () => {
   // In a real application, this would come from the user's profile in Supabase
@@ -46,6 +47,28 @@ const DeveloperPlan = () => {
     },
   ];
   
+  // Sample vehicles for the mini map
+  const sampleVehicles = [
+    {
+      id: "sample-1",
+      plate_number: "ABC123",
+      status: "active",
+      current_location: { lat: 37.7749, lng: -122.4194 }
+    },
+    {
+      id: "sample-2",
+      plate_number: "DEF456",
+      status: "active",
+      current_location: { lat: 37.7809, lng: -122.4129 }
+    },
+    {
+      id: "sample-3",
+      plate_number: "GHI789",
+      status: "inactive",
+      current_location: { lat: 37.7700, lng: -122.4260 }
+    }
+  ];
+  
   return (
     <div className="p-6">
       <h1 className="text-2xl font-bold mb-6">Plan Overview</h1>
@@ -63,21 +86,34 @@ const DeveloperPlan = () => {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div>
-            <p className="text-sm text-muted-foreground">Next billing date</p>
-            <p>{currentPlan.renewalDate}</p>
-          </div>
-          
-          <div>
-            <p className="font-medium mb-2">Plan Features:</p>
-            <ul className="space-y-2">
-              {currentPlan.features.map((feature, index) => (
-                <li key={index} className="flex items-start">
-                  <ShieldCheck className="h-5 w-5 text-fleet-500 mr-2 shrink-0" />
-                  <span>{feature}</span>
-                </li>
-              ))}
-            </ul>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-4">
+              <div>
+                <p className="text-sm text-muted-foreground">Next billing date</p>
+                <p>{currentPlan.renewalDate}</p>
+              </div>
+              
+              <div>
+                <p className="font-medium mb-2">Plan Features:</p>
+                <ul className="space-y-2">
+                  {currentPlan.features.map((feature, index) => (
+                    <li key={index} className="flex items-start">
+                      <ShieldCheck className="h-5 w-5 text-fleet-500 mr-2 shrink-0" />
+                      <span>{feature}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+            
+            <div className="h-[200px] rounded-lg border overflow-hidden">
+              <div className="h-full w-full">
+                <MultiVehicleMap vehicles={sampleVehicles} />
+              </div>
+              <div className="text-center text-xs text-muted-foreground mt-2">
+                Sample fleet visualization with your current plan capacity
+              </div>
+            </div>
           </div>
         </CardContent>
         <CardFooter className="flex justify-between">

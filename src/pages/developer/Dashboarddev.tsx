@@ -51,6 +51,41 @@ const DeveloperDashboard = () => {
               .in('id', assigned_vehicle_ids);
             if (vehicleError) throw vehicleError;
             vehiclesArr = vehicleData || [];
+            
+            // For each vehicle, fetch its latest position
+            for (const vehicle of vehiclesArr) {
+              try {
+                // Get device IDs for this vehicle
+                const { data: deviceData } = await supabase
+                  .from('devices')
+                  .select('id')
+                  .eq('vehicle_id', vehicle.id);
+                  
+                if (deviceData && deviceData.length > 0) {
+                  const deviceIds = deviceData.map(d => d.id);
+                  
+                  // Get latest position for these devices
+                  const { data: posData } = await supabase
+                    .from('vehicle_positions')
+                    .select('*')
+                    .in('device_id', deviceIds)
+                    .order('created_at', { ascending: false })
+                    .limit(1);
+                    
+                  if (posData && posData.length > 0) {
+                    // Add current location to the vehicle
+                    vehicle.current_location = {
+                      lat: posData[0].latitude,
+                      lng: posData[0].longitude,
+                      timestamp: posData[0].created_at
+                    };
+                  }
+                }
+              } catch (err) {
+                console.error(`Error fetching position for vehicle ${vehicle.id}:`, err);
+              }
+            }
+            
             setVehicles(vehiclesArr);
           } else {
             setVehicles([]);
