@@ -107,8 +107,8 @@ const DeveloperPlan = () => {
     };
   }, [user]);
   
-  // Use real vehicles if available, otherwise use sample data
-  const displayVehicles = vehicles.length > 0 ? vehicles : [
+  // For the map, ensure we have correctly typed vehicles
+  const sampleVehicles: Vehicle[] = [
     {
       id: "sample-1",
       plate_number: "ABC123",
@@ -137,6 +137,9 @@ const DeveloperPlan = () => {
       current_location: { lat: 37.7700, lng: -122.4260 }
     }
   ];
+  
+  // Use real vehicles if available, otherwise use sample data
+  const displayVehicles: Vehicle[] = vehicles.length > 0 ? vehicles : sampleVehicles;
   
   return (
     <div className="p-6">

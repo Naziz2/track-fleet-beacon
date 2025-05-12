@@ -28,7 +28,25 @@ L.Marker.prototype.options.icon = defaultIcon;
 const activeVehicleIcon = L.icon({
   iconUrl: '/images/active-vehicle-marker.png',
   iconRetinaUrl: '/images/active-vehicle-marker.png',
-  shadowUrl: null,
+  shadowUrl,
+  iconSize: [30, 48],
+  iconAnchor: [15, 48],
+  popupAnchor: [0, -48],
+});
+
+const inactiveVehicleIcon = L.icon({
+  iconUrl: '/images/inactive-vehicle-marker.png',
+  iconRetinaUrl: '/images/inactive-vehicle-marker.png',
+  shadowUrl,
+  iconSize: [30, 48],
+  iconAnchor: [15, 48],
+  popupAnchor: [0, -48],
+});
+
+const maintenanceVehicleIcon = L.icon({
+  iconUrl: '/images/maintenance-vehicle-marker.png',
+  iconRetinaUrl: '/images/maintenance-vehicle-marker.png',
+  shadowUrl,
   iconSize: [30, 48],
   iconAnchor: [15, 48],
   popupAnchor: [0, -48],
@@ -37,11 +55,25 @@ const activeVehicleIcon = L.icon({
 const historyMarkerIcon = L.icon({
   iconUrl: '/images/history-marker.png',
   iconRetinaUrl: '/images/history-marker.png',
-  shadowUrl: null,
+  shadowUrl,
   iconSize: [20, 32],
   iconAnchor: [10, 32],
   popupAnchor: [0, -32],
 });
+
+// Function to get the appropriate icon based on vehicle status
+const getVehicleIcon = (status: string) => {
+  switch (status) {
+    case 'active':
+      return activeVehicleIcon;
+    case 'inactive':
+      return inactiveVehicleIcon;
+    case 'maintenance':
+      return maintenanceVehicleIcon;
+    default:
+      return defaultIcon;
+  }
+};
 
 function MapView({ center }: { center: [number, number] }) {
   const map = useMap();
@@ -89,7 +121,8 @@ export const VehicleMap = ({ vehicle, showHistory = false }: VehicleMapProps) =>
         {/* Show current vehicle location */}
         {currentLocation.lat !== 0 && currentLocation.lng !== 0 && (
           <Marker 
-            position={[currentLocation.lat, currentLocation.lng]} 
+            position={[currentLocation.lat, currentLocation.lng]}
+            icon={getVehicleIcon(vehicle.status)}
           >
             <Popup>
               <div>
@@ -105,6 +138,7 @@ export const VehicleMap = ({ vehicle, showHistory = false }: VehicleMapProps) =>
           <Marker
             key={index}
             position={[location.lat, location.lng]}
+            icon={historyMarkerIcon}
           >
             <Popup>
               <div>
@@ -181,6 +215,7 @@ export const MultiVehicleMap = ({ vehicles, selectedVehicleId, onVehicleSelect }
             <Marker 
               key={vehicle.id}
               position={[loc.lat, loc.lng]}
+              icon={getVehicleIcon(vehicle.status)}
               eventHandlers={onVehicleSelect ? {
                 click: () => onVehicleSelect(vehicle.id)
               } : undefined}
