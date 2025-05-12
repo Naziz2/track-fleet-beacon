@@ -1,147 +1,171 @@
-import { useState, useEffect } from "react";
-import { useAuth } from "@/contexts/AuthContext";
-import { useRouter } from 'next/router';
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { supabase } from "@/lib/supabase";
-import { UserRole } from "@/types";
-import { Skeleton } from "@/components/ui/skeleton";
 
-// Import the AlertProcessor
-import AlertProcessor from "@/components/AlertProcessor";
+import { useState } from "react";
+import { Outlet, NavLink, useNavigate } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
+import { Button } from "@/components/ui/button";
+import { 
+  LayoutDashboard, 
+  Car, 
+  Users, 
+  User, 
+  UserCog,
+  Menu, 
+  LogOut,
+  X
+} from "lucide-react";
+import { cn } from "@/lib/utils";
+import { toast } from "sonner";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 
 const AdminLayout = () => {
-  const { user, signOut } = useAuth();
-  const router = useRouter();
-  const [userRole, setUserRole] = useState<UserRole | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const fetchUserRole = async () => {
-      if (user) {
-        try {
-          // Check if the user exists in the admins table
-          const { data: adminData, error: adminError } = await supabase
-            .from('admins')
-            .select('*')
-            .eq('id', user.id)
-            .single();
-
-          if (!adminError && adminData) {
-            setUserRole('admin');
-            setLoading(false);
-            return;
-          }
-
-          // If not an admin, check if the user exists in the developers table
-          const { data: developerData, error: developerError } = await supabase
-            .from('developers')
-            .select('*')
-            .eq('id', user.id)
-            .single();
-
-          if (!developerError && developerData) {
-            setUserRole('developer');
-            setLoading(false);
-            return;
-          }
-
-          // If not an admin or developer, the user role is unassigned
-          setUserRole('unassigned');
-          setLoading(false);
-        } catch (error) {
-          console.error("Error fetching user role:", error);
-          setUserRole('unassigned'); // Assign a default role in case of error
-          setLoading(false);
-        }
-      } else {
-        setUserRole(null); // No user, no role
-        setLoading(false);
-      }
-    };
-
-    fetchUserRole();
-  }, [user]);
+  const { signOut, user } = useAuth();
+  const navigate = useNavigate();
+  const [sidebarOpen, setSidebarOpen] = useState(true);
 
   const handleSignOut = async () => {
     await signOut();
-    router.push('/login');
+    toast.success("Logged out successfully");
+    navigate("/login");
   };
 
-  if (loading) {
-    return (
-      <div className="flex h-full items-center justify-center p-8">
-        <div className="text-center">
-          <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full mx-auto mb-4"></div>
-          <p>Loading dashboard...</p>
-        </div>
-      </div>
-    );
-  }
+  const navItems = [
+    {
+      title: "Dashboard",
+      href: "/admin/dashboard",
+      icon: <LayoutDashboard className="h-5 w-5" />,
+    },
+    {
+      title: "Vehicles",
+      href: "/admin/vehicles",
+      icon: <Car className="h-5 w-5" />,
+    },
+    {
+      title: "Developers",
+      href: "/admin/developers",
+      icon: <UserCog className="h-5 w-5" />,
+    },
+    {
+      title: "Users",
+      href: "/admin/users",
+      icon: <Users className="h-5 w-5" />,
+    },
+    {
+      title: "Plan",
+      href: "/admin/plan",
+      icon: <LayoutDashboard className="h-5 w-5" />,
+    },
+    {
+      title: "Payment",
+      href: "/admin/payment",
+      icon: <Car className="h-5 w-5" />,
+    },
+    {
+      title: "Profile",
+      href: "/admin/profile",
+      icon: <User className="h-5 w-5" />,
+    },
+  ];
 
   return (
-    <div className="h-full flex">
-      <AlertProcessor />
-      <div className="w-64 flex-none bg-gray-100 border-r border-gray-200 py-4 px-6">
-        <div className="mb-8">
-          <h2 className="text-2xl font-bold text-gray-800">Dashboard</h2>
-          <p className="text-sm text-gray-600">Manage your fleet and users.</p>
+    <div className="flex h-screen bg-gray-50">
+      {/* Mobile sidebar toggle */}
+      <div className="fixed top-4 left-4 z-50 lg:hidden">
+        <Button 
+          variant="outline" 
+          size="icon" 
+          onClick={() => setSidebarOpen(!sidebarOpen)}
+          className="rounded-full bg-white shadow-md"
+        >
+          {sidebarOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+        </Button>
+      </div>
+
+      {/* Sidebar */}
+      <aside 
+        className={cn(
+          "fixed top-0 left-0 z-40 h-full w-64 bg-white border-r transform transition-transform duration-300 ease-in-out lg:translate-x-0",
+          sidebarOpen ? "translate-x-0" : "-translate-x-full"
+        )}
+      >
+        <div className="flex flex-col h-full">
+          {/* Logo */}
+          <div className="flex items-center justify-center h-16 border-b">
+            <h1 className="text-xl font-bold text-fleet-700">
+              autotrace <span className="text-sm font-normal text-gray-500">Admin</span>
+            </h1>
+          </div>
+          
+          {/* Navigation */}
+          <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
+            {navItems.map((item) => (
+              <NavLink
+                key={item.href}
+                to={item.href}
+                className={({ isActive }) => cn(
+                  "flex items-center px-4 py-2 rounded-lg",
+                  isActive 
+                    ? "bg-fleet-100 text-fleet-700" 
+                    : "text-gray-600 hover:bg-gray-100"
+                )}
+                onClick={() => {
+                  if (window.innerWidth < 1024) {
+                    setSidebarOpen(false);
+                  }
+                }}
+              >
+                {item.icon}
+                <span className="ml-3">{item.title}</span>
+              </NavLink>
+            ))}
+          </nav>
+          
+          {/* User & Logout */}
+          <div className="p-4 border-t">
+            <div className="flex items-center mb-4">
+              <Avatar className="h-8 w-8">
+                <AvatarFallback className="bg-fleet-600 text-white">
+                  {user?.email?.charAt(0).toUpperCase() || "U"}
+                </AvatarFallback>
+              </Avatar>
+              <div className="ml-3">
+                <p className="text-sm font-medium text-gray-700 truncate">
+                  {user?.email}
+                </p>
+                <p className="text-xs text-gray-500">Administrator</p>
+              </div>
+            </div>
+            <Button 
+              variant="outline" 
+              className="w-full justify-start text-red-600 hover:text-red-700 hover:bg-red-50"
+              onClick={handleSignOut}
+            >
+              <LogOut className="w-4 h-4 mr-2" />
+              Sign Out
+            </Button>
+          </div>
         </div>
-        <nav>
-          <ul>
-            <li className="mb-2">
-              <a href="/admin/Dashboardadmin" className="block py-2 px-4 rounded hover:bg-gray-200 transition-colors">
-                Overview
-              </a>
-            </li>
-            <li className="mb-2">
-              <a href="/admin/Vehicles" className="block py-2 px-4 rounded hover:bg-gray-200 transition-colors">
-                Vehicles
-              </a>
-            </li>
-            <li className="mb-2">
-              <a href="/admin/Users" className="block py-2 px-4 rounded hover:bg-gray-200 transition-colors">
-                Users
-              </a>
-            </li>
-            <li className="mb-2">
-              <a href="/admin/Developers" className="block py-2 px-4 rounded hover:bg-gray-200 transition-colors">
-                Developers
-              </a>
-            </li>
-          </ul>
-        </nav>
-      </div>
-      <div className="flex-1 p-8">
-        <header className="flex items-center justify-between mb-8">
-          <h1 className="text-3xl font-bold text-gray-800">Welcome!</h1>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button className="rounded-full h-10 w-10 relative">
-                <Avatar className="h-10 w-10">
-                  <AvatarImage src={`https://avatars.dicebear.com/api/initials/${user?.email.charAt(0)}.svg`} alt={user?.email || "Avatar"} />
-                  <AvatarFallback>{user?.email.charAt(0).toUpperCase()}</AvatarFallback>
-                </Avatar>
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent className="w-56" align="end" forceMount>
-              <DropdownMenuLabel>My Account</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={handleSignOut}>Sign Out</DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </header>
-        <main className="container mx-auto">
-          {/* Main content will be rendered here */}
+      </aside>
+
+      {/* Main Content */}
+      <div className={cn(
+        "flex-1 flex flex-col transition-all duration-300 ease-in-out",
+        sidebarOpen ? "lg:ml-64" : "ml-0"
+      )}>
+        <main className="flex-1 p-4 md:p-6 overflow-y-auto">
+          <Outlet />
         </main>
+        <footer className="py-4 px-6 border-t text-center text-sm text-gray-500">
+          &copy; {new Date().getFullYear()} autotrace. All rights reserved.
+        </footer>
       </div>
+
+      {/* Overlay for mobile */}
+      {sidebarOpen && (
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-50 z-30 lg:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
     </div>
   );
 };
