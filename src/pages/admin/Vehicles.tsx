@@ -107,13 +107,12 @@ const [selectedDeveloperForMap, setSelectedDeveloperForMap] = useState<string | 
       }
     };
     
+    // Fetch once on mount or when user changes
     fetchVehicles();
-    intervalId = setInterval(() => {
-      fetchVehicles();
-    }, 1000); // 1 second-refresh every 30 seconds
-    return () => {
-      if (intervalId) clearInterval(intervalId);
-    };
+
+    // Cleanup
+    return () => {};
+
     
     // Set up subscription for real-time updates
     const vehiclesSubscription = supabase

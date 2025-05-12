@@ -129,14 +129,11 @@ const AdminUsers = () => {
       .subscribe();
 
     // Set up interval for auto-refresh
-    const intervalId = setInterval(() => {
-      fetchData();
-    }, 1000); // 1 second
+  
 
     // Cleanup subscription and interval
     return () => {
       usersSubscription.unsubscribe();
-      clearInterval(intervalId);
     };
   }, [user]);
   

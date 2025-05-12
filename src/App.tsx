@@ -17,11 +17,15 @@ import AdminVehicles from "./pages/admin/Vehicles";
 import AdminDevelopers from "./pages/admin/Developers";
 import AdminUsers from "./pages/admin/Users";
 import AdminProfile from "./pages/admin/Profile";
+import AdminPlan from "./pages/admin/Plan";
+import AdminPayment from "./pages/admin/Payment";
 import DeveloperDashboard from "./pages/developer/Dashboarddev";
 import DeveloperVehicles from "./pages/developer/Vehicles";
 import DeveloperUsers from "./pages/developer/Users";
 import DeveloperAlerts from "./pages/developer/Alerts";
 import DeveloperProfile from "./pages/developer/Profile";
+import DeveloperPlan from "./pages/developer/Plan";
+import DeveloperPayment from "./pages/developer/Payment";
 
 // Protected route wrapper
 const ProtectedRoute = ({ 
@@ -47,22 +51,21 @@ const ProtectedRoute = ({
   return <>{children}</>;
 };
 
+import { useNavigate } from "react-router-dom";
+
 const AppRoutes = () => {
   const { userRole } = useAuth();
-  
+  const navigate = useNavigate();
+
   // Redirect based on role
   useEffect(() => {
-    // When user is authenticated, redirect to their appropriate dashboard
-    if (userRole === 'admin') {
-      if (window.location.pathname === '/') {
-        window.location.href = '/admin/dashboard';
-      }
-    } else if (userRole === 'developer') {
-      if (window.location.pathname === '/') {
-        window.location.href = '/developer/dashboard';
-      }
+    // Only redirect if on root
+    if (userRole === 'admin' && window.location.pathname === '/') {
+      navigate('/admin/dashboard', { replace: true });
+    } else if (userRole === 'developer' && window.location.pathname === '/') {
+      navigate('/developer/dashboard', { replace: true });
     }
-  }, [userRole]);
+  }, [userRole, navigate]);
 
   return (
     <Routes>
@@ -76,10 +79,12 @@ const AppRoutes = () => {
           <AdminLayout />
         </ProtectedRoute>
       }>
-        <Route path="dashboard" element={<AdminDashboard />} />
+         <Route path="dashboard" element={<AdminDashboard />} />
         <Route path="vehicles" element={<AdminVehicles />} />
         <Route path="developers" element={<AdminDevelopers />} />
         <Route path="users" element={<AdminUsers />} />
+        <Route path="plan" element={<AdminPlan />} />
+        <Route path="payment" element={<AdminPayment />} />
         <Route path="profile" element={<AdminProfile />} />
       </Route>
       
@@ -92,6 +97,8 @@ const AppRoutes = () => {
         <Route path="dashboard" element={<DeveloperDashboard />} />
         <Route path="vehicles" element={<DeveloperVehicles />} />
         <Route path="users" element={<DeveloperUsers />} />
+        <Route path="plan" element={<DeveloperPlan />} />
+        <Route path="payment" element={<DeveloperPayment />} />
         <Route path="alerts" element={<DeveloperAlerts />} />
         <Route path="profile" element={<DeveloperProfile />} />
       </Route>

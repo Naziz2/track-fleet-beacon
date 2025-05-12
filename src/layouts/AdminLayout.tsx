@@ -50,6 +50,16 @@ const AdminLayout = () => {
       icon: <Users className="h-5 w-5" />,
     },
     {
+      title: "Plan",
+      href: "/admin/plan",
+      icon: <LayoutDashboard className="h-5 w-5" />,
+    },
+    {
+      title: "Payment",
+      href: "/admin/payment",
+      icon: <Car className="h-5 w-5" />,
+    },
+    {
       title: "Profile",
       href: "/admin/profile",
       icon: <User className="h-5 w-5" />,

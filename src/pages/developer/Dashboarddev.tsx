@@ -75,16 +75,14 @@ const DeveloperDashboard = () => {
       }
     };
 
+    // Fetch once on mount or when user changes
     fetchDashboardData();
-    const intervalId = setInterval(() => {
-      fetchDashboardData();
-    }, 1000); // 30 seconds
 
-    return () => {
-      clearInterval(intervalId);
-    };
+    // Cleanup
+    return () => {};
+
   }, [user]);
-  
+
   if (loading) {
     return (
       <div className="flex h-full items-center justify-center p-8">

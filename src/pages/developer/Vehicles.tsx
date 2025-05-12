@@ -31,7 +31,6 @@ const DeveloperVehicles = () => {
 
   // Fetch vehicles assigned to this developer
   useEffect(() => {
-    let intervalId: NodeJS.Timeout | null = null;
     const fetchVehicles = async () => {
       if (!user) return;
       try {
@@ -116,7 +115,8 @@ const DeveloperVehicles = () => {
     };
     
     fetchVehicles();
-    intervalId = setInterval(fetchVehicles, 1000); // Auto-refresh every 1 second
+    // Fetch once on mount or when user changes
+    fetchVehicles();
 
     // Fetch data when tab becomes visible
     const handleVisibilityChange = () => {
@@ -127,7 +127,7 @@ const DeveloperVehicles = () => {
     document.addEventListener('visibilitychange', handleVisibilityChange);
 
     return () => {
-      if (intervalId) clearInterval(intervalId);
+      
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
 

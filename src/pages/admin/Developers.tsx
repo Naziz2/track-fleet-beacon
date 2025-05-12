@@ -101,16 +101,14 @@ const AdminDevelopers = () => {
       })
       .subscribe();
 
-    // Set up interval for auto-refresh
-    const intervalId = setInterval(() => {
-      fetchDevelopers();
-    }, 1000); // 1 second
+    // Fetch once on mount or when user changes
+    fetchDevelopers();
 
     // Cleanup
     return () => {
       developersSubscription.unsubscribe();
-      clearInterval(intervalId);
     };
+
   }, [user]);
   
   // Handle search
