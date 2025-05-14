@@ -26,6 +26,7 @@ import DeveloperAlerts from "./pages/developer/Alerts";
 import DeveloperProfile from "./pages/developer/Profile";
 import DeveloperPlan from "./pages/developer/Plan";
 import DeveloperPayment from "./pages/developer/Payment";
+import { LoadingSpinner } from "./components/ui/loading-spinner";
 
 // Protected route wrapper
 const ProtectedRoute = ({ 
@@ -40,8 +41,11 @@ const ProtectedRoute = ({
   const { userRole, isLoading } = useAuth();
   
   if (isLoading) {
-    // You could render a loading spinner here
-    return <div className="flex items-center justify-center h-screen">Loading...</div>;
+    return (
+      <div className="flex items-center justify-center h-screen bg-gray-50">
+        <LoadingSpinner size="lg" text="Loading your account..." />
+      </div>
+    );
   }
   
   if (!allowedRoles.includes(userRole)) {
@@ -50,8 +54,6 @@ const ProtectedRoute = ({
   
   return <>{children}</>;
 };
-
-import { useNavigate } from "react-router-dom";
 
 const AppRoutes = () => {
   const { userRole } = useAuth();
@@ -84,7 +86,6 @@ const AppRoutes = () => {
         <Route path="developers" element={<AdminDevelopers />} />
         <Route path="users" element={<AdminUsers />} />
         <Route path="plan" element={<AdminPlan />} />
-
         <Route path="profile" element={<AdminProfile />} />
       </Route>
       
@@ -97,7 +98,6 @@ const AppRoutes = () => {
         <Route path="dashboard" element={<DeveloperDashboard />} />
         <Route path="vehicles" element={<DeveloperVehicles />} />
         <Route path="users" element={<DeveloperUsers />} />
-
         <Route path="alerts" element={<DeveloperAlerts />} />
         <Route path="profile" element={<DeveloperProfile />} />
       </Route>
@@ -108,16 +108,26 @@ const AppRoutes = () => {
   );
 };
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      refetchOnWindowFocus: false,
+      retry: 1,
+      staleTime: 5 * 60 * 1000, // 5 minutes
+    },
+  },
+});
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <AuthProvider>
       <TooltipProvider>
         <Toaster />
-        <Sonner />
+        <Sonner position="top-right" closeButton={true} className="z-[100]" />
         <BrowserRouter>
-          <AppRoutes />
+          <div className="min-h-screen bg-gray-50 font-sans antialiased">
+            <AppRoutes />
+          </div>
         </BrowserRouter>
       </TooltipProvider>
     </AuthProvider>

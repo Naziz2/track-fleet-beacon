@@ -20,7 +20,7 @@ export default {
 		},
 		extend: {
 			fontFamily: {
-        sans: ['Inter var', 'sans-serif'],
+        sans: ['Inter', 'system-ui', 'sans-serif'],
       },
 			colors: {
 				border: 'hsl(var(--border))',
@@ -30,7 +30,18 @@ export default {
 				foreground: 'hsl(var(--foreground))',
 				primary: {
 					DEFAULT: 'hsl(var(--primary))',
-					foreground: 'hsl(var(--primary-foreground))'
+					foreground: 'hsl(var(--primary-foreground))',
+          50: '#eef2ff',
+          100: '#e0e7ff',
+          200: '#c7d2fe',
+          300: '#a5b4fc',
+          400: '#818cf8',
+          500: '#6366f1',
+          600: '#4f46e5',
+          700: '#4338ca',
+          800: '#3730a3',
+          900: '#312e81',
+          950: '#1e1b4b',
 				},
 				secondary: {
 					DEFAULT: 'hsl(var(--secondary))',
@@ -67,16 +78,17 @@ export default {
 					ring: 'hsl(var(--sidebar-ring))'
 				},
 				fleet: {
-					50: '#DBEAFE',
-					100: '#BFDBFE',
-					200: '#93C5FD',
-					300: '#60A5FA',
-					400: '#3B82F6',
-					500: '#2563EB',
-					600: '#1E40AF',
-					700: '#1E3A8A',
-					800: '#1E3A5F',
-					900: '#172554',
+					50: '#f0f9ff',
+					100: '#e0f2fe',
+					200: '#bae6fd',
+					300: '#7dd3fc',
+					400: '#38bdf8',
+					500: '#0ea5e9',
+					600: '#0284c7',
+					700: '#0369a1',
+					800: '#075985',
+					900: '#0c4a6e',
+					950: '#082f49',
 				},
 			},
 			borderRadius: {
@@ -84,6 +96,10 @@ export default {
 				md: 'calc(var(--radius) - 2px)',
 				sm: 'calc(var(--radius) - 4px)'
 			},
+			boxShadow: {
+        'card': '0 2px 6px 0 rgba(0, 0, 0, 0.05)',
+        'card-hover': '0 4px 12px 0 rgba(0, 0, 0, 0.1)',
+      },
 			keyframes: {
 				'accordion-down': {
 					from: {
@@ -121,12 +137,36 @@ export default {
 						transform: 'translateY(10px)'
 					}
 				},
+        'shimmer': {
+          '0%': {
+            backgroundPosition: '-468px 0',
+          },
+          '100%': {
+            backgroundPosition: '468px 0',
+          },
+        },
+        'pulse-ring': {
+          '0%': { 
+            transform: 'scale(0.8)',
+            opacity: '0.8' 
+          },
+          '50%': { 
+            transform: 'scale(1)',
+            opacity: '0.4' 
+          },
+          '100%': { 
+            transform: 'scale(1.2)',
+            opacity: '0' 
+          },
+        }
 			},
 			animation: {
 				'accordion-down': 'accordion-down 0.2s ease-out',
 				'accordion-up': 'accordion-up 0.2s ease-out',
 				'fade-in': 'fade-in 0.3s ease-out',
 				'fade-out': 'fade-out 0.3s ease-out',
+        'shimmer': 'shimmer 1.5s infinite linear',
+        'pulse-ring': 'pulse-ring 1.5s cubic-bezier(0.24, 0, 0.38, 1) infinite',
 			}
 		}
 	},

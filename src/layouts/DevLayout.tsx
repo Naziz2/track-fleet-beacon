@@ -1,6 +1,6 @@
 
-import { useState } from "react";
-import { Outlet, NavLink, useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { Outlet, NavLink, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { 
@@ -11,16 +11,28 @@ import {
   BellRing,
   Menu, 
   LogOut,
-  X
+  X,
+  Code,
+  Bell,
+  BarChart3
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Badge } from "@/components/ui/badge";
 
 const DevLayout = () => {
   const { signOut, user } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [notifications, setNotifications] = useState<number>(0);
+
+  // Simulate notifications count (in a real app, this would come from an API)
+  useEffect(() => {
+    setNotifications(Math.floor(Math.random() * 5));
+  }, []);
 
   const handleSignOut = async () => {
     await signOut();
@@ -52,7 +64,8 @@ const DevLayout = () => {
     {
       title: "Alerts",
       href: "/developer/alerts",
-      icon: <BellRing className="h-5 w-5" />,
+      icon: <Bell className="h-5 w-5" />,
+      badge: notifications,
     },
   ];
 
@@ -73,29 +86,30 @@ const DevLayout = () => {
       {/* Sidebar */}
       <aside 
         className={cn(
-          "fixed top-0 left-0 z-40 h-full w-64 bg-white border-r transform transition-transform duration-300 ease-in-out lg:translate-x-0",
+          "fixed top-0 left-0 z-40 h-full w-64 bg-gradient-to-b from-gray-900 to-gray-800 transform transition-transform duration-300 ease-in-out lg:translate-x-0",
           sidebarOpen ? "translate-x-0" : "-translate-x-full"
         )}
       >
-        <div className="flex flex-col h-full">
+        <div className="flex flex-col h-full text-gray-200">
           {/* Logo */}
-          <div className="flex items-center justify-center h-16 border-b">
-            <h1 className="text-xl font-bold text-fleet-600">
-              autotrace <span className="text-sm font-normal text-gray-500">Developer</span>
+          <div className="flex items-center justify-center h-16 border-b border-gray-700">
+            <h1 className="text-xl font-bold text-white flex items-center">
+              <Code className="mr-2 h-6 w-6" />
+              autotrace <span className="ml-2 text-sm font-medium px-2 py-1 bg-blue-900/60 text-blue-100 rounded">Dev</span>
             </h1>
           </div>
           
           {/* Navigation */}
-          <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
+          <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
             {navItems.map((item) => (
               <NavLink
                 key={item.href}
                 to={item.href}
                 className={({ isActive }) => cn(
-                  "flex items-center px-4 py-2 rounded-lg",
+                  "flex items-center px-4 py-3 rounded-lg transition-colors duration-200 group relative",
                   isActive 
-                    ? "bg-fleet-100 text-fleet-700" 
-                    : "text-gray-600 hover:bg-gray-100"
+                    ? "bg-blue-900/30 text-white font-medium" 
+                    : "text-gray-300 hover:bg-gray-700 hover:text-white"
                 )}
                 onClick={() => {
                   if (window.innerWidth < 1024) {
@@ -105,28 +119,52 @@ const DevLayout = () => {
               >
                 {item.icon}
                 <span className="ml-3">{item.title}</span>
+                {item.badge && item.badge > 0 && (
+                  <Badge className="ml-auto bg-red-500 hover:bg-red-600">
+                    {item.badge}
+                  </Badge>
+                )}
               </NavLink>
             ))}
           </nav>
           
           {/* User & Logout */}
-          <div className="p-4 border-t">
-            <div className="flex items-center mb-4">
-              <Avatar className="h-8 w-8">
-                <AvatarFallback className="bg-fleet-500 text-white">
-                  {user?.email?.charAt(0).toUpperCase() || "U"}
+          <div className="p-4 border-t border-gray-700">
+            <div className="flex items-center mb-4 bg-gray-700/50 p-3 rounded-lg">
+              <Avatar className="h-10 w-10 border-2 border-gray-600 shadow-sm">
+                <AvatarFallback className="bg-blue-700 text-white">
+                  {user?.email?.charAt(0).toUpperCase() || "D"}
                 </AvatarFallback>
               </Avatar>
-              <div className="ml-3">
-                <p className="text-sm font-medium text-gray-700 truncate">
-                  {user?.email}
+              <div className="ml-3 overflow-hidden">
+                <p className="text-sm font-medium text-gray-100 truncate">
+                  {user?.email || "dev@autotrace.com"}
                 </p>
-                <p className="text-xs text-gray-500">Developer</p>
+                <p className="text-xs text-gray-400">Developer</p>
               </div>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div className="ml-auto relative">
+                      <Button variant="ghost" size="icon" className="text-gray-400 hover:text-white h-8 w-8">
+                        <BellRing className="h-5 w-5" />
+                      </Button>
+                      {notifications > 0 && (
+                        <span className="absolute top-0 right-0 h-4 w-4 bg-red-500 rounded-full text-white text-xs flex items-center justify-center">
+                          {notifications}
+                        </span>
+                      )}
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>You have {notifications} notifications</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
             </div>
             <Button 
               variant="outline" 
-              className="w-full justify-start text-red-600 hover:text-red-700 hover:bg-red-50"
+              className="w-full justify-start text-gray-200 hover:text-white hover:bg-gray-700 border border-gray-700"
               onClick={handleSignOut}
             >
               <LogOut className="w-4 h-4 mr-2" />
@@ -141,10 +179,35 @@ const DevLayout = () => {
         "flex-1 flex flex-col transition-all duration-300 ease-in-out",
         sidebarOpen ? "lg:ml-64" : "ml-0"
       )}>
-        <main className="flex-1 p-4 md:p-6 overflow-y-auto">
+        {/* Header */}
+        <header className="bg-white border-b px-4 py-3 flex items-center justify-between sticky top-0 z-10 shadow-sm">
+          <h2 className="text-lg font-medium text-gray-800">
+            {navItems.find(item => item.href === location.pathname)?.title || "Dashboard"}
+          </h2>
+          <div className="flex items-center space-x-2">
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="ghost" size="icon" className="text-gray-500">
+                    <BellRing className="h-5 w-5" />
+                    {notifications > 0 && (
+                      <span className="absolute top-1 right-1 h-3 w-3 bg-red-500 rounded-full"></span>
+                    )}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>You have {notifications} notifications</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </div>
+        </header>
+        
+        <main className="flex-1 p-4 md:p-6 overflow-y-auto bg-gray-50">
           <Outlet />
         </main>
-        <footer className="py-4 px-6 border-t text-center text-sm text-gray-500">
+        
+        <footer className="py-4 px-6 border-t text-center text-sm text-gray-500 bg-white">
           &copy; {new Date().getFullYear()} autotrace. All rights reserved.
         </footer>
       </div>
