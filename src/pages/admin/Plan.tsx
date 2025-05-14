@@ -8,11 +8,13 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { useQuery } from "@tanstack/react-query";
 import { Shield, ShieldCheck, Plus, Pencil, Trash2 } from "lucide-react";
+import PaymentForm from "./Payment";
 import { toast } from "sonner";
 
 const AdminPlan = () => {
   const [showAddPlanForm, setShowAddPlanForm] = useState(false);
   const [editingPlan, setEditingPlan] = useState<number | null>(null);
+  const [selectedPlan, setSelectedPlan] = useState<any | null>(null);
   
   // Mock data for plans - in a real app, this would come from Supabase
   const [plans, setPlans] = useState([
@@ -88,153 +90,70 @@ const AdminPlan = () => {
           <h1 className="text-2xl font-bold">Plan Management</h1>
           <p className="text-muted-foreground">Manage subscription plans for your customers</p>
         </div>
-        <Button onClick={() => setShowAddPlanForm(!showAddPlanForm)}>
-          <Plus className="mr-2 h-4 w-4" /> Add New Plan
-        </Button>
+
       </div>
       
-      {showAddPlanForm && (
-        <Card className="mb-6 animate-fade-in">
-          <CardHeader>
-            <CardTitle>Add New Plan</CardTitle>
-            <CardDescription>Create a new subscription plan</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="name">Plan Name</Label>
-                <Input 
-                  id="name"
-                  value={newPlan.name}
-                  onChange={(e) => setNewPlan({...newPlan, name: e.target.value})}
-                  placeholder="e.g. Basic, Premium"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="price">Monthly Price ($)</Label>
-                <Input 
-                  id="price"
-                  type="number"
-                  value={newPlan.price === 0 ? "" : newPlan.price}
-                  onChange={(e) => setNewPlan({...newPlan, price: parseFloat(e.target.value)})}
-                  placeholder="29.99"
-                />
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="features">Features (comma separated)</Label>
-              <Input 
-                id="features"
-                value={newPlan.features}
-                onChange={(e) => setNewPlan({...newPlan, features: e.target.value})}
-                placeholder="e.g. 10 vehicles, Standard support, Basic analytics"
-              />
-            </div>
-            <div className="flex items-center space-x-2">
-              <input
-                type="checkbox"
-                id="isPopular"
-                checked={newPlan.isPopular}
-                onChange={(e) => setNewPlan({...newPlan, isPopular: e.target.checked})}
-                className="rounded border-gray-300"
-              />
-              <Label htmlFor="isPopular">Mark as Popular Plan</Label>
-            </div>
-          </CardContent>
-          <CardFooter className="flex justify-end space-x-2">
-            <Button variant="outline" onClick={() => setShowAddPlanForm(false)}>Cancel</Button>
-            <Button onClick={handleAddPlan}>Save Plan</Button>
-          </CardFooter>
-        </Card>
-      )}
-      
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        {plans.map((plan) => (
-          <Card key={plan.id} className={plan.isPopular ? "border-fleet-500 shadow-lg" : ""}>
-            {plan.isPopular && (
-              <div className="bg-fleet-500 text-white text-center py-1 text-sm">
-                MOST POPULAR
-              </div>
-            )}
-            <CardHeader>
-              <div className="flex justify-between items-center">
-                <CardTitle>{plan.name}</CardTitle>
-                <div className="flex space-x-2">
-                  <Button size="icon" variant="ghost" onClick={() => setEditingPlan(plan.id)}>
-                    <Pencil className="h-4 w-4" />
-                  </Button>
-                  <Button size="icon" variant="ghost" onClick={() => handleDeletePlan(plan.id)}>
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
+      {selectedPlan ? (
+        <div>
+          <Button variant="ghost" className="mb-6" onClick={() => setSelectedPlan(null)}>
+            ← Back to Plans
+          </Button>
+          <PaymentForm plan={selectedPlan} />
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-8 mb-10">
+          {plans.map((plan) => (
+            <div
+              key={plan.id}
+              className={`relative rounded-2xl border transition-shadow duration-200 bg-white hover:shadow-2xl ${plan.isPopular ? 'border-fleet-500 ring-2 ring-fleet-400 scale-105 z-10' : 'border-gray-200'} p-6 flex flex-col items-center`}
+            >
+              {plan.isPopular && (
+                <span className="absolute -top-4 left-1/2 -translate-x-1/2 bg-fleet-500 text-white px-4 py-1 rounded-full shadow-lg text-xs font-semibold tracking-wide z-20">
+                  MOST POPULAR
+                </span>
+              )}
+              <div className="flex flex-col items-center mb-6">
+                <h2 className="text-3xl font-extrabold text-gray-900 mb-2">{plan.name}</h2>
+                <div className="flex items-end mb-2">
+                  <span className="text-4xl font-bold text-fleet-500">{plan.price} DT</span>
+                  <span className="text-lg text-gray-500 ml-1 mb-1">/month</span>
                 </div>
               </div>
-              <CardDescription>
-                <span className="text-2xl font-bold">${plan.price}</span>/month
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <ul className="space-y-2">
+              <ul className="w-full mb-6 space-y-3">
                 {plan.features.map((feature, index) => (
-                  <li key={index} className="flex items-start">
-                    <ShieldCheck className="h-5 w-5 text-fleet-500 mr-2 shrink-0" />
+                  <li key={index} className="flex items-center gap-2 text-gray-700">
+                    <ShieldCheck className="h-5 w-5 text-fleet-500" />
                     <span>{feature}</span>
                   </li>
                 ))}
               </ul>
-            </CardContent>
-            <CardFooter>
-              <Button className="w-full" variant={plan.isPopular ? "default" : "outline"}>
-                View Subscribers
-              </Button>
-            </CardFooter>
-          </Card>
-        ))}
-      </div>
+              <div className="flex flex-col w-full gap-2 mt-auto">
+                <Button
+                  className={`w-full py-2 rounded-lg font-bold text-lg transition-all duration-200 ${plan.isPopular ? 'bg-fleet-500 hover:bg-fleet-600 text-white' : 'bg-white border border-fleet-500 text-fleet-500 hover:bg-fleet-50'}`}
+                  variant={plan.isPopular ? "default" : "outline"}
+                  onClick={() => setSelectedPlan(plan)}
+                >
+                  Upgrade
+                </Button>
+                <Button className="w-full py-2 rounded-lg text-base" variant="outline">
+                  View Subscribers
+                </Button>
+              </div>
+              <div className="absolute top-4 right-4 flex gap-2 opacity-0 hover:opacity-100 transition-opacity duration-200 group-hover:opacity-100">
+                <Button size="icon" variant="ghost" onClick={() => setEditingPlan(plan.id)}>
+                  <Pencil className="h-4 w-4 text-gray-400 hover:text-fleet-500" />
+                </Button>
+                <Button size="icon" variant="ghost" onClick={() => handleDeletePlan(plan.id)}>
+                  <Trash2 className="h-4 w-4 text-gray-400 hover:text-red-500" />
+                </Button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
       
-      <Card>
-        <CardHeader>
-          <CardTitle>Plan Statistics</CardTitle>
-          <CardDescription>Overview of subscription plans</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Plan</TableHead>
-                <TableHead>Price</TableHead>
-                <TableHead>Active Subscribers</TableHead>
-                <TableHead>Revenue</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              <TableRow>
-                <TableCell>Basic</TableCell>
-                <TableCell>$9.99</TableCell>
-                <TableCell>124</TableCell>
-                <TableCell>$1,238.76</TableCell>
-              </TableRow>
-              <TableRow>
-                <TableCell>Professional</TableCell>
-                <TableCell>$29.99</TableCell>
-                <TableCell>86</TableCell>
-                <TableCell>$2,579.14</TableCell>
-              </TableRow>
-              <TableRow>
-                <TableCell>Enterprise</TableCell>
-                <TableCell>$99.99</TableCell>
-                <TableCell>14</TableCell>
-                <TableCell>$1,399.86</TableCell>
-              </TableRow>
-              <TableRow>
-                <TableCell className="font-bold">Total</TableCell>
-                <TableCell></TableCell>
-                <TableCell className="font-bold">224</TableCell>
-                <TableCell className="font-bold">$5,217.76</TableCell>
-              </TableRow>
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+
     </div>
   );
 };

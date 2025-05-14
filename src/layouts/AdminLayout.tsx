@@ -54,11 +54,7 @@ const AdminLayout = () => {
       href: "/admin/plan",
       icon: <LayoutDashboard className="h-5 w-5" />,
     },
-    {
-      title: "Payment",
-      href: "/admin/payment",
-      icon: <Car className="h-5 w-5" />,
-    },
+
     {
       title: "Profile",
       href: "/admin/profile",

@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { VehicleMap, MultiVehicleMap } from "@/components/VehicleMap";
 import { Badge } from "@/components/ui/badge";
-import { Car, AlertTriangle } from "lucide-react";
+import { Car, AlertTriangle, BadgeCheck, Users } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -23,6 +23,8 @@ const AdminDashboard = () => {
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedVehicleId, setSelectedVehicleId] = useState<string | undefined>(undefined);
+  const [devCount, setDevCount] = useState<number>(0);
+  const [userCount, setUserCount] = useState<number>(0);
   
   useEffect(() => {
     const fetchData = async () => {
@@ -76,6 +78,22 @@ const AdminDashboard = () => {
         
         setVehicles(mappedVehicles);
         
+        // Fetch developers for this admin
+        const { data: devData, error: devError } = await supabase
+          .from('developers')
+          .select('id')
+          .eq('admin_uid', user.id);
+        if (devError) throw devError;
+        setDevCount(devData ? devData.length : 0);
+
+        // Fetch users for this admin
+        const { data: userData, error: userError } = await supabase
+          .from('users')
+          .select('id')
+          .eq('admin_uid', user.id);
+        if (userError) throw userError;
+        setUserCount(userData ? userData.length : 0);
+
         // Fetch alerts for vehicles managed by this admin
         const { data: alertData, error: alertError } = await supabase
           .from('alerts')
@@ -196,58 +214,26 @@ const AdminDashboard = () => {
       </div>
 
       {/* Admin Stat Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mt-2">
-        <Card className="shadow-lg hover:shadow-xl transition-shadow">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Total Vehicles</p>
-                <p className="text-3xl font-bold">{vehicles.length}</p>
-              </div>
-              <div className="p-2 bg-primary/10 rounded-full">
-                <Car className="h-6 w-6 text-primary" />
-              </div>
-            </div>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <Card>
+          <CardContent className="p-6 flex flex-col items-center">
+            <Car className="h-6 w-6 text-primary mb-2" />
+            <div className="font-medium">Total Vehicles</div>
+            <div className="text-3xl font-bold">{vehicles.length}</div>
           </CardContent>
         </Card>
-        <Card className="shadow-lg hover:shadow-xl transition-shadow">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Active Alerts</p>
-                <p className="text-3xl font-bold">{alerts.length}</p>
-              </div>
-              <div className="p-2 bg-destructive/10 rounded-full">
-                <AlertTriangle className="h-6 w-6 text-destructive" />
-              </div>
-            </div>
+        <Card>
+          <CardContent className="p-6 flex flex-col items-center">
+            <BadgeCheck className="h-6 w-6 text-blue-600 mb-2" />
+            <div className="font-medium">Developers</div>
+            <div className="text-3xl font-bold text-blue-700">{devCount}</div>
           </CardContent>
         </Card>
-        {/* Placeholder for developers/users, replace with real data if available */}
-        <Card className="shadow-lg hover:shadow-xl transition-shadow">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Developers</p>
-                <p className="text-3xl font-bold">-</p>
-              </div>
-              <div className="p-2 bg-blue-100 rounded-full">
-                <Car className="h-6 w-6 text-blue-600" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="shadow-lg hover:shadow-xl transition-shadow">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Users</p>
-                <p className="text-3xl font-bold">-</p>
-              </div>
-              <div className="p-2 bg-green-100 rounded-full">
-                <Car className="h-6 w-6 text-green-600" />
-              </div>
-            </div>
+        <Card>
+          <CardContent className="p-6 flex flex-col items-center">
+            <Users className="h-6 w-6 text-purple-600 mb-2" />
+            <div className="font-medium">Users</div>
+            <div className="text-3xl font-bold text-purple-700">{userCount}</div>
           </CardContent>
         </Card>
       </div>
@@ -288,7 +274,7 @@ const AdminDashboard = () => {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mt-2">
         {/* Map and vehicle list side by side on desktop */}
         <div className="md:col-span-2 flex flex-col md:flex-row gap-4">
-          <div className="flex-1">
+          <div className="w-full md:w-[70%]">
             <Card className="shadow-lg hover:shadow-xl transition-shadow">
               <CardHeader>
                 <CardTitle>Fleet Map</CardTitle>
@@ -314,7 +300,7 @@ const AdminDashboard = () => {
             </Card>
           </div>
           {/* Vehicle List */}
-          <div className="w-full md:w-60">
+          <div className="w-full md:w-[35%]">
             <Card className="h-[350px] overflow-y-auto">
               <CardHeader>
                 <CardTitle className="text-base">Vehicles</CardTitle>
@@ -343,59 +329,7 @@ const AdminDashboard = () => {
             </Card>
           </div>
         </div>
-        {/* Alerts Box */}
-        <div className="md:col-span-1">
-          <Card>
-            <CardHeader>
-              <CardTitle>Recent Alerts</CardTitle>
-              <CardDescription>
-                Latest alerts from your vehicles
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {alerts.length === 0 ? (
-                <div className="text-center py-4">
-                  <p className="text-muted-foreground">No recent alerts.</p>
-                </div>
-              ) : (
-                <div className="overflow-x-auto">
-                  <Table className="rounded-lg">
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Vehicle</TableHead>
-                        <TableHead>Type</TableHead>
-                        <TableHead>Description</TableHead>
-                        <TableHead>Timestamp</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {alerts.map((alert) => {
-                        const vehicle = vehicles.find(v => v.id === alert.vehicle_id);
-                        return (
-                          <TableRow key={alert.id} className="hover:bg-accent/40 transition-colors">
-                            <TableCell className="font-medium">
-                              {vehicle ? vehicle.plate_number : "Unknown"}
-                            </TableCell>
-                            <TableCell>
-                              <Badge variant="destructive" className="gap-1.5" title={alert.type}>
-                                <AlertTriangle className="h-3 w-3" />
-                                {alert.type}
-                              </Badge>
-                            </TableCell>
-                            <TableCell>{alert.description}</TableCell>
-                            <TableCell>
-                              {new Date(alert.timestamp).toLocaleString()}
-                            </TableCell>
-                          </TableRow>
-                        );
-                      })}
-                    </TableBody>
-                  </Table>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
+
       </div>
     </div>
   );

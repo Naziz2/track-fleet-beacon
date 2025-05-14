@@ -34,55 +34,90 @@ const DeveloperAlerts = () => {
   const [vehiclesMap, setVehiclesMap] = useState<{ [key: string]: Vehicle }>({});
   const [filterType, setFilterType] = useState<string>("all");
   
-  // Fetch alerts
+  // Fetch alerts (from vehicles_positions)
   useEffect(() => {
     const fetchAlerts = async () => {
       if (!user) return;
-      
       setLoading(true);
       try {
-        // First get the developer record to get assigned vehicle IDs
+        // Get developer's assigned vehicles
         const { data: developerData, error: developerError } = await supabase
           .from('developers')
           .select('*')
           .eq('id', user.id)
           .single();
-          
         if (developerError) throw developerError;
-        
         if (developerData && developerData.assigned_vehicle_ids?.length > 0) {
           const { assigned_vehicle_ids } = developerData;
-          
           // Fetch vehicles
           const { data: vehicleData, error: vehicleError } = await supabase
             .from('vehicles')
             .select('*')
             .in('id', assigned_vehicle_ids);
-            
           if (vehicleError) throw vehicleError;
-          
-          // Map the vehicles data using our helper function
           const mappedVehicles = (vehicleData || []).map(mapVehicle);
-          // Create a map of vehicle ID to vehicle object for easy lookup
           const vehiclesMapObj: { [key: string]: Vehicle } = {};
           mappedVehicles.forEach(vehicle => {
             vehiclesMapObj[vehicle.id] = vehicle;
           });
           setVehiclesMap(vehiclesMapObj);
-          
-          // Fetch alerts for these vehicles
-          const { data: alertData, error: alertError } = await supabase
-            .from('alerts')
+          // Fetch devices for these vehicles
+          const { data: devicesData, error: devicesError } = await supabase
+            .from('devices')
+            .select('id,vehicle_id')
+            .in('vehicle_id', assigned_vehicle_ids);
+          if (devicesError) throw devicesError;
+          const deviceIdToVehicleId: { [deviceId: string]: string } = {};
+          (devicesData || []).forEach(device => {
+            deviceIdToVehicleId[device.id] = device.vehicle_id;
+          });
+          const deviceIds = Object.keys(deviceIdToVehicleId);
+          // Fetch recent positions for these devices
+          const { data: positionsData, error: positionsError } = await supabase
+            .from('vehicle_positions')
             .select('*')
-            .in('vehicle_id', assigned_vehicle_ids)
-            .order('timestamp', { ascending: false });
-            
-          if (alertError) throw alertError;
-          
-          // Map the alerts data using our helper function
-          const mappedAlerts = (alertData || []).map(mapAlert);
-          setAlerts(mappedAlerts);
-          setFilteredAlerts(mappedAlerts);
+            .in('device_id', deviceIds)
+            .order('created_at', { ascending: false })
+            .limit(500);
+          if (positionsError) throw positionsError;
+          // Classify alerts using the provided logic
+          const computedAlerts = [];
+          for (let i = 0; i < (positionsData?.length || 0); i++) {
+            const pos = positionsData[i];
+            const prev = positionsData[i + 1];
+            let alertType = 'normal';
+            if (pos.pitch < -5) {
+              alertType = 'uphill';
+            } else if (pos.pitch > 5) {
+              alertType = 'downhill';
+            } else if (pos.roll > 5 || pos.roll < -5) {
+              alertType = pos.roll > 0 ? 'tiltedRight' : 'tiltedLeft';
+            } else if (prev && Math.abs(pos.accel_z - prev.accel_z) > 0.5) {
+              alertType = 'bump';
+            }
+            // Map device_id to vehicle_id using the mapping
+            const vehicleId = deviceIdToVehicleId[pos.device_id];
+            if (alertType !== 'normal' && vehicleId && vehiclesMapObj[vehicleId]) {
+              computedAlerts.push({
+                id: pos.id,
+                vehicle_id: vehicleId,
+                type: alertType,
+                description: `Pitch: ${pos.pitch}, Roll: ${pos.roll}, AccelZ: ${pos.accel_z}`,
+                timestamp: pos.created_at,
+              });
+            }
+          }
+          // Only keep the latest alert for each vehicle_id
+          const latestAlertsMap: { [vehicle_id: string]: typeof computedAlerts[0] } = {};
+          for (const alert of computedAlerts) {
+            const existing = latestAlertsMap[alert.vehicle_id];
+            if (!existing || new Date(alert.timestamp) > new Date(existing.timestamp)) {
+              latestAlertsMap[alert.vehicle_id] = alert;
+            }
+          }
+          const latestAlerts = Object.values(latestAlertsMap);
+          setAlerts(latestAlerts);
+          setFilteredAlerts(latestAlerts);
         } else {
           setAlerts([]);
           setFilteredAlerts([]);
@@ -94,7 +129,6 @@ const DeveloperAlerts = () => {
         setLoading(false);
       }
     };
-    
     fetchAlerts();
     
     // Set up subscription for real-time updates

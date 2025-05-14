@@ -84,7 +84,7 @@ const AppRoutes = () => {
         <Route path="developers" element={<AdminDevelopers />} />
         <Route path="users" element={<AdminUsers />} />
         <Route path="plan" element={<AdminPlan />} />
-        <Route path="payment" element={<AdminPayment />} />
+
         <Route path="profile" element={<AdminProfile />} />
       </Route>
       
@@ -97,8 +97,7 @@ const AppRoutes = () => {
         <Route path="dashboard" element={<DeveloperDashboard />} />
         <Route path="vehicles" element={<DeveloperVehicles />} />
         <Route path="users" element={<DeveloperUsers />} />
-        <Route path="plan" element={<DeveloperPlan />} />
-        <Route path="payment" element={<DeveloperPayment />} />
+
         <Route path="alerts" element={<DeveloperAlerts />} />
         <Route path="profile" element={<DeveloperProfile />} />
       </Route>

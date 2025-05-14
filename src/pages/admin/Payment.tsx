@@ -17,246 +17,147 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
-const AdminPayment = () => {
-  const [searchTerm, setSearchTerm] = useState("");
-  const [dateFilter, setDateFilter] = useState("all");
-  const [statusFilter, setStatusFilter] = useState("all");
-  
-  // Mock payment data - would come from Supabase in a real app
-  const payments = [
-    {
-      id: "INV-001",
-      developerName: "TechFusion Labs",
-      developerEmail: "contact@techfusion.com",
-      amount: 29.99,
-      date: "2025-05-01",
-      status: "completed",
-      plan: "Professional",
-    },
-    {
-      id: "INV-002",
-      developerName: "DataDrive Solutions",
-      developerEmail: "info@datadrive.io",
-      amount: 99.99,
-      date: "2025-05-03",
-      status: "completed",
-      plan: "Enterprise",
-    },
-    {
-      id: "INV-003",
-      developerName: "MobileTrack Inc.",
-      developerEmail: "billing@mobiletrack.com",
-      amount: 29.99,
-      date: "2025-05-10",
-      status: "failed",
-      plan: "Professional",
-    },
-    {
-      id: "INV-004",
-      developerName: "Smart Fleet Systems",
-      developerEmail: "admin@smartfleet.co",
-      amount: 9.99,
-      date: "2025-05-11",
-      status: "pending",
-      plan: "Basic",
-    },
-    {
-      id: "INV-005",
-      developerName: "Connected Vehicles Ltd",
-      developerEmail: "finance@connectedvehicles.net",
-      amount: 29.99,
-      date: "2025-05-12",
-      status: "completed",
-      plan: "Professional",
-    },
-  ];
-  
-  // Summary statistics
-  const totalRevenue = payments.filter(p => p.status === 'completed').reduce((sum, payment) => sum + payment.amount, 0);
-  const pendingRevenue = payments.filter(p => p.status === 'pending').reduce((sum, payment) => sum + payment.amount, 0);
-  const failedRevenue = payments.filter(p => p.status === 'failed').reduce((sum, payment) => sum + payment.amount, 0);
-  
-  // Filter payments based on search term, date, and status
-  const filteredPayments = payments.filter(payment => {
-    const matchesSearch = 
-      payment.developerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      payment.developerEmail.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      payment.id.toLowerCase().includes(searchTerm.toLowerCase());
-    
-    const matchesStatus = statusFilter === 'all' || payment.status === statusFilter;
-    
-    // Simple date filter - in a real app would have proper date range filtering
-    const matchesDate = dateFilter === 'all' || (
-      dateFilter === 'today' && payment.date === '2025-05-12' || 
-      dateFilter === 'week' && ['2025-05-10', '2025-05-11', '2025-05-12'].includes(payment.date)
-    );
-    
-    return matchesSearch && matchesStatus && matchesDate;
-  });
-  
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'completed':
-        return <Badge className="bg-green-100 text-green-800 border-green-200">Completed</Badge>;
-      case 'pending':
-        return <Badge className="bg-yellow-100 text-yellow-800 border-yellow-200">Pending</Badge>;
-      case 'failed':
-        return <Badge className="bg-red-100 text-red-800 border-red-200">Failed</Badge>;
-      default:
-        return <Badge variant="outline">{status}</Badge>;
-    }
+interface PaymentFormProps {
+  plan?: { name: string; price: number };
+}
+
+const PaymentForm: React.FC<PaymentFormProps> = ({ plan }) => {
+  const [paymentMethod, setPaymentMethod] = useState<'card' | 'bank'>('card');
+  const [cardNumber, setCardNumber] = useState('');
+  const [cardName, setCardName] = useState('');
+  const [expiry, setExpiry] = useState('');
+  const [cvv, setCvv] = useState('');
+  const [address, setAddress] = useState('');
+  const [city, setCity] = useState('');
+  const [zip, setZip] = useState('');
+  const [country, setCountry] = useState('');
+
+  const handlePay = () => {
+    toast.success('Payment successful!');
   };
-  
-  const handlePaymentAction = (id: string, action: string) => {
-    toast.success(`Payment ${id} ${action} successfully`);
-  };
-  
+
   return (
-    <div className="p-6">
-      <h1 className="text-2xl font-bold mb-6">Payment Management</h1>
-      
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+    <div className="flex flex-col md:flex-row gap-8 p-6">
+      <div className="flex-1 max-w-2xl mx-auto">
         <Card>
-          <CardHeader className="pb-2">
-            <CardDescription>Total Revenue</CardDescription>
-            <CardTitle className="text-3xl flex items-center">
-              <BadgeDollarSign className="mr-2 text-green-600" />
-              ${totalRevenue.toFixed(2)}
-            </CardTitle>
+          <CardHeader>
+            <CardTitle>Complete your payment</CardTitle>
+            <CardDescription>
+              {plan ? (
+                <>
+                  You are upgrading to the <span className="font-semibold">{plan.name}</span> plan for <span className="font-semibold">{plan.price} DT/month</span>.
+                </>
+              ) : (
+                <span className="text-red-500">No plan selected. Please select a plan first.</span>
+              )}
+            </CardDescription>
           </CardHeader>
           <CardContent>
-            <p className="text-sm text-muted-foreground">From {payments.length} payments</p>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription>Pending Revenue</CardDescription>
-            <CardTitle className="text-3xl flex items-center">
-              <CreditCard className="mr-2 text-yellow-600" />
-              ${pendingRevenue.toFixed(2)}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-muted-foreground">{payments.filter(p => p.status === 'pending').length} pending payments</p>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription>Failed Payments</CardDescription>
-            <CardTitle className="text-3xl flex items-center">
-              <Receipt className="mr-2 text-red-600" />
-              ${failedRevenue.toFixed(2)}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-muted-foreground">{payments.filter(p => p.status === 'failed').length} failed payments</p>
+            <div className="mb-6">
+              <div className="flex gap-4 justify-center mb-4">
+                <Button
+                  variant={paymentMethod === 'card' ? 'default' : 'outline'}
+                  className={`flex-1 py-3 text-base font-semibold ${paymentMethod === 'card' ? 'shadow-md' : ''}`}
+                  onClick={() => setPaymentMethod('card')}
+                >
+                  <CreditCard className="mr-2" /> Credit Card
+                </Button>
+                <Button
+                  variant={paymentMethod === 'bank' ? 'default' : 'outline'}
+                  className={`flex-1 py-3 text-base font-semibold ${paymentMethod === 'bank' ? 'shadow-md' : ''}`}
+                  onClick={() => setPaymentMethod('bank')}
+                >
+                  <WalletMinimal className="mr-2" /> Bank Transfer
+                </Button>
+              </div>
+            </div>
+            {paymentMethod === 'card' && (
+              <form className="space-y-4" onSubmit={e => { e.preventDefault(); handlePay(); }}>
+                <div>
+                  <Label htmlFor="cardNumber">Card Number</Label>
+                  <Input id="cardNumber" placeholder="1234 5678 9012 3456" value={cardNumber} onChange={e => setCardNumber(e.target.value)} required />
+                </div>
+                <div>
+                  <Label htmlFor="cardName">Name on Card</Label>
+                  <Input id="cardName" placeholder="John Doe" value={cardName} onChange={e => setCardName(e.target.value)} required />
+                </div>
+                <div className="flex gap-4">
+                  <div className="flex-1">
+                    <Label htmlFor="expiry">Expiry Date</Label>
+                    <Input id="expiry" placeholder="MM/YY" value={expiry} onChange={e => setExpiry(e.target.value)} required />
+                  </div>
+                  <div className="flex-1">
+                    <Label htmlFor="cvv">CVV</Label>
+                    <Input id="cvv" placeholder="123" value={cvv} onChange={e => setCvv(e.target.value)} required />
+                  </div>
+                </div>
+                <div>
+                  <Label htmlFor="address">Address</Label>
+                  <Input id="address" placeholder="123 Main St" value={address} onChange={e => setAddress(e.target.value)} required />
+                </div>
+                <div className="flex gap-4">
+                  <div className="flex-1">
+                    <Label htmlFor="city">City</Label>
+                    <Input id="city" placeholder="Tunis" value={city} onChange={e => setCity(e.target.value)} required />
+                  </div>
+                  <div className="flex-1">
+                    <Label htmlFor="zip">ZIP Code</Label>
+                    <Input id="zip" placeholder="1000" value={zip} onChange={e => setZip(e.target.value)} required />
+                  </div>
+                </div>
+                <div>
+                  <Label htmlFor="country">Country</Label>
+                  <Input id="country" placeholder="Tunisia" value={country} onChange={e => setCountry(e.target.value)} required />
+                </div>
+                <Button className="w-full mt-4" type="submit">{plan ? `Pay ${plan.price} DT` : 'Pay'}</Button>
+              </form>
+            )}
+            {paymentMethod === 'bank' && (
+              <div className="py-8 px-6 bg-fleet-50 border border-fleet-200 rounded-lg flex flex-col items-center max-w-xl mx-auto shadow-sm">
+                <h3 className="text-lg font-bold mb-4 text-fleet-600">Bank Transfer Details</h3>
+                <div className="w-full text-left space-y-2 mb-6">
+                  <div><span className="font-semibold">Bank Name:</span> Banque de Tunisie</div>
+                  <div className="flex items-center gap-2">
+                    <span className="font-semibold">Account Number:</span>
+                    <span id="account-number">1234567890123456</span>
+                    <Button size="sm" variant="ghost" onClick={() => {navigator.clipboard.writeText('1234567890123456')}}>Copy</Button>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="font-semibold">IBAN:</span>
+                    <span id="iban">TN5904018104000000012345</span>
+                    <Button size="sm" variant="ghost" onClick={() => {navigator.clipboard.writeText('TN5904018104000000012345')}}>Copy</Button>
+                  </div>
+                  <div><span className="font-semibold">Beneficiary:</span> Autotrace Solutions</div>
+                  <div><span className="font-semibold">Reference:</span> Your email or Company Name</div>
+                </div>
+                <form className="w-full space-y-4" onSubmit={e => {e.preventDefault(); toast.success('Bank transfer details submitted!');}}>
+                  <div>
+                    <Label htmlFor="senderName">Sender Name</Label>
+                    <Input id="senderName" name="senderName" placeholder="Your Name or Company" required />
+                  </div>
+                  <div>
+                    <Label htmlFor="senderBank">Sender Bank</Label>
+                    <Input id="senderBank" name="senderBank" placeholder="Your Bank Name" required />
+                  </div>
+                  <div>
+                    <Label htmlFor="transferRef">Transfer Reference</Label>
+                    <Input id="transferRef" name="transferRef" placeholder="Reference used in transfer" required />
+                  </div>
+                  <div>
+                    <Label htmlFor="paymentProof">Upload Payment Proof</Label>
+                    <Input id="paymentProof" name="paymentProof" type="file" accept="image/*,application/pdf" required />
+                  </div>
+                  <Button type="submit" className="w-full mt-2">Submit Transfer Details</Button>
+                </form>
+                <div className="text-xs text-gray-400 mt-3 text-center">Your plan will be activated once payment is confirmed.</div>
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
-      
-      <Card>
-        <CardHeader>
-          <CardTitle>Payment History</CardTitle>
-          <CardDescription>View and manage all payment transactions</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-col md:flex-row gap-4 mb-6">
-            <div className="md:w-1/3">
-              <Label htmlFor="search" className="sr-only">Search</Label>
-              <Input
-                id="search"
-                placeholder="Search by developer or invoice ID..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full"
-              />
-            </div>
-            <div className="flex gap-2">
-              <select
-                className="border rounded-md px-3 py-2 bg-white"
-                value={dateFilter}
-                onChange={(e) => setDateFilter(e.target.value)}
-              >
-                <option value="all">All Dates</option>
-                <option value="today">Today</option>
-                <option value="week">This Week</option>
-              </select>
-              <select
-                className="border rounded-md px-3 py-2 bg-white"
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-              >
-                <option value="all">All Status</option>
-                <option value="completed">Completed</option>
-                <option value="pending">Pending</option>
-                <option value="failed">Failed</option>
-              </select>
-            </div>
-          </div>
-          
-          <div className="border rounded-lg overflow-hidden">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Invoice ID</TableHead>
-                  <TableHead>Developer</TableHead>
-                  <TableHead>Plan</TableHead>
-                  <TableHead>Amount</TableHead>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredPayments.length > 0 ? (
-                  filteredPayments.map((payment) => (
-                    <TableRow key={payment.id}>
-                      <TableCell className="font-medium">{payment.id}</TableCell>
-                      <TableCell>
-                        <div>
-                          <div className="font-medium">{payment.developerName}</div>
-                          <div className="text-sm text-muted-foreground">{payment.developerEmail}</div>
-                        </div>
-                      </TableCell>
-                      <TableCell>{payment.plan}</TableCell>
-                      <TableCell>${payment.amount.toFixed(2)}</TableCell>
-                      <TableCell>{payment.date}</TableCell>
-                      <TableCell>{getStatusBadge(payment.status)}</TableCell>
-                      <TableCell className="text-right space-x-2">
-                        <Button 
-                          variant="outline" 
-                          size="sm"
-                          onClick={() => handlePaymentAction(payment.id, 'viewed')}
-                        >
-                          View
-                        </Button>
-                        {payment.status === 'failed' && (
-                          <Button
-                            size="sm"
-                            onClick={() => handlePaymentAction(payment.id, 'retried')}
-                          >
-                            Retry
-                          </Button>
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  ))
-                ) : (
-                  <TableRow>
-                    <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
-                      No payments found matching your filters
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </div>
-        </CardContent>
-      </Card>
+
     </div>
   );
-};
+}
 
-export default AdminPayment;
+export default PaymentForm;

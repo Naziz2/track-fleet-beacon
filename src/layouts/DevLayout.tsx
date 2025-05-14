@@ -45,24 +45,14 @@ const DevLayout = () => {
       icon: <Users className="h-5 w-5" />,
     },
     {
-      title: "Plan",
-      href: "/developer/plan",
-      icon: <LayoutDashboard className="h-5 w-5" />,
-    },
-    {
-      title: "Payment",
-      href: "/developer/payment",
-      icon: <Car className="h-5 w-5" />,
+      title: "Profile",
+      href: "/developer/profile",
+      icon: <User className="h-5 w-5" />,
     },
     {
       title: "Alerts",
       href: "/developer/alerts",
       icon: <BellRing className="h-5 w-5" />,
-    },
-    {
-      title: "Profile",
-      href: "/developer/profile",
-      icon: <User className="h-5 w-5" />,
     },
   ];
 

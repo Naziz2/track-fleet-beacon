@@ -25,32 +25,14 @@ const defaultIcon = L.icon({
 L.Marker.prototype.options.icon = defaultIcon;
 
 // Custom Icons
-const activeVehicleIcon = L.icon({
-  iconUrl: '/images/active-vehicle-marker.png',
-  iconRetinaUrl: '/images/active-vehicle-marker.png',
-  shadowUrl,
-  iconSize: [30, 48],
-  iconAnchor: [15, 48],
-  popupAnchor: [0, -48],
+const carPinMarkerIcon = L.icon({
+  iconUrl: '/image.png',
+  iconRetinaUrl: '/image.png',
+  iconSize: [32, 38],
+  iconAnchor: [16, 34],
+  popupAnchor: [0, -32],
 });
 
-const inactiveVehicleIcon = L.icon({
-  iconUrl: '/images/inactive-vehicle-marker.png',
-  iconRetinaUrl: '/images/inactive-vehicle-marker.png',
-  shadowUrl,
-  iconSize: [30, 48],
-  iconAnchor: [15, 48],
-  popupAnchor: [0, -48],
-});
-
-const maintenanceVehicleIcon = L.icon({
-  iconUrl: '/images/maintenance-vehicle-marker.png',
-  iconRetinaUrl: '/images/maintenance-vehicle-marker.png',
-  shadowUrl,
-  iconSize: [30, 48],
-  iconAnchor: [15, 48],
-  popupAnchor: [0, -48],
-});
 
 const historyMarkerIcon = L.icon({
   iconUrl: '/images/history-marker.png',
@@ -62,18 +44,7 @@ const historyMarkerIcon = L.icon({
 });
 
 // Function to get the appropriate icon based on vehicle status
-const getVehicleIcon = (status: string) => {
-  switch (status) {
-    case 'active':
-      return activeVehicleIcon;
-    case 'inactive':
-      return inactiveVehicleIcon;
-    case 'maintenance':
-      return maintenanceVehicleIcon;
-    default:
-      return defaultIcon;
-  }
-};
+const getVehicleIcon = (_status: string) => carPinMarkerIcon;
 
 function MapView({ center }: { center: [number, number] }) {
   const map = useMap();

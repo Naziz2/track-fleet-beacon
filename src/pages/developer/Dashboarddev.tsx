@@ -16,7 +16,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { BellRing, Car, Users, CheckCircle, XCircle, Info, AlertTriangle } from "lucide-react";
+import { BellRing, Car, Users, CheckCircle, XCircle, Info, AlertTriangle, ArrowUpRight, ArrowDownRight, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
 
 const DeveloperDashboard = () => {
@@ -97,7 +97,17 @@ const DeveloperDashboard = () => {
               .select('*')
               .in('vehicle_id', assigned_vehicle_ids);
             if (alertError) throw alertError;
-            setAlerts(alertData || []);
+            // Only keep the latest alert for each vehicle_id
+const alertsArr = alertData || [];
+const latestAlertsMap = {};
+for (const alert of alertsArr) {
+  const existing = latestAlertsMap[alert.vehicle_id];
+  if (!existing || new Date(alert.timestamp) > new Date(existing.timestamp)) {
+    latestAlertsMap[alert.vehicle_id] = alert;
+  }
+}
+const latestAlerts = Object.values(latestAlertsMap);
+setAlerts(latestAlerts);
           } else {
             setAlerts([]);
           }
@@ -286,20 +296,63 @@ const DeveloperDashboard = () => {
                       {alerts.map((alert) => {
                         const vehicle = vehicles.find(v => v.id === alert.vehicle_id);
                         return (
-                          <TableRow key={alert.id} className="hover:bg-accent/40 transition-colors">
+                          <TableRow key={alert.id} className="hover:bg-gradient-to-r hover:from-slate-100 hover:to-slate-200 transition-all rounded-xl shadow-sm border-b border-slate-100">
                             <TableCell className="font-medium">
                               {vehicle ? vehicle.plate_number : "Unknown"}
                             </TableCell>
                             <TableCell>
-                              <Badge variant="destructive" className="gap-1.5" title={alert.type}>
-                                <AlertTriangle className="h-3 w-3" />
-                                {alert.type}
-                              </Badge>
-                            </TableCell>
-                            <TableCell>{alert.description}</TableCell>
-                            <TableCell>
-                              {new Date(alert.timestamp).toLocaleString()}
-                            </TableCell>
+  {(() => {
+    let color = "bg-gray-500 text-white";
+    let icon: React.ReactNode = <AlertTriangle className="h-3 w-3" />;
+    switch(alert.type) {
+      case "uphill":
+        color = "bg-gradient-to-r from-green-400 to-blue-500 text-white";
+        icon = <ArrowUpRight className="h-3 w-3" />;
+        break;
+      case "downhill":
+        color = "bg-gradient-to-r from-yellow-400 to-orange-500 text-white";
+        icon = <ArrowDownRight className="h-3 w-3" />;
+        break;
+      case "tiltedRight":
+        color = "bg-gradient-to-r from-purple-400 to-pink-500 text-white";
+        icon = <RotateCcw className="h-3 w-3 rotate-12" />;
+        break;
+      case "tiltedLeft":
+        color = "bg-gradient-to-r from-pink-400 to-purple-600 text-white";
+        icon = <RotateCcw className="h-3 w-3 -rotate-12" />;
+        break;
+      case "bump":
+        color = "bg-gradient-to-r from-red-400 to-yellow-500 text-white";
+        icon = <AlertTriangle className="h-3 w-3" />;
+        break;
+      case "speeding":
+        color = "bg-gradient-to-r from-red-500 to-orange-500 text-white";
+        icon = <ArrowUpRight className="h-3 w-3" />;
+        break;
+      case "geofence":
+        color = "bg-gradient-to-r from-blue-400 to-green-500 text-white";
+        icon = <Info className="h-3 w-3" />;
+        break;
+      case "maintenance":
+        color = "bg-gradient-to-r from-gray-400 to-blue-400 text-white";
+        icon = <CheckCircle className="h-3 w-3" />;
+        break;
+      default:
+        color = "bg-gray-500 text-white";
+        icon = <AlertTriangle className="h-3 w-3" />;
+    }
+    return (
+      <span
+        className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold shadow-sm ${color} transition-all duration-200`}
+        title={alert.type}
+        style={{ minWidth: 80, justifyContent: 'center', letterSpacing: '0.02em' }}
+      >
+        {icon}
+        <span className="capitalize">{alert.type.replace(/([A-Z])/g, ' $1')}</span>
+      </span>
+    );
+  })()}
+</TableCell>
                           </TableRow>
                         );
                       })}
