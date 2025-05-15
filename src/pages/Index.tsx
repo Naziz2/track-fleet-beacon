@@ -35,7 +35,7 @@ const Index = () => {
                 variant="outline" 
                 className="text-white border-theme-lightBrown/30 hover:bg-theme-deepPurple/40 hover:text-white"
               >
-                <Link to="/register">Sign Up</Link>
+
               </Button>
               <Button 
                 asChild
@@ -59,7 +59,7 @@ const Index = () => {
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Button asChild size="lg" className="bg-theme-terracotta hover:bg-theme-lightBrown text-white px-8 py-6 text-lg">
-              <Link to={user ? (user.user_metadata?.role === 'developer' ? '/developer/dashboard' : '/admin/dashboard') : '/register'}>
+              <Link to={user ? (user.user_metadata?.role === 'developer' ? '/developer/dashboard' : '/admin/dashboard') : '/login'}>
                 {user ? 'Go to Dashboard' : 'Get Started'}
               </Link>
             </Button>

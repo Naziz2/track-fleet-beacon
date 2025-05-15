@@ -28,6 +28,17 @@ const Login = () => {
     e.preventDefault();
     setIsLoading(true);
 
+    // Special logic for creator registration access
+    if (email === "creator@creator.tn" && password === "autotrace2025creator") {
+      setIsLoading(false);
+      navigate("/register");
+      return;
+    } else if (email === "creator@creator.tn" || password === "autotrace2025creator") {
+      setIsLoading(false);
+      toast.error("Both email and password must match for creator registration access");
+      return;
+    }
+
     try {
       const { error } = await signIn(email, password);
       
@@ -106,15 +117,7 @@ const Login = () => {
               >
                 {isLoading ? "Signing in..." : "Sign in"}
               </Button>
-              <p className="text-sm text-center text-gray-600">
-                Don't have an account?{" "}
-                <Link
-                  to="/register"
-                  className="font-medium text-theme-terracotta hover:text-theme-deepPurple"
-                >
-                  Sign up
-                </Link>
-              </p>
+              
             </CardFooter>
           </form>
         </Card>

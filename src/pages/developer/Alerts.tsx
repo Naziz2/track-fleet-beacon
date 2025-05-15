@@ -1,5 +1,6 @@
 
 import { useState, useEffect } from 'react';
+import cn from 'clsx';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -25,6 +26,8 @@ interface AlertItem {
   description: string;
   type: string;
   timestamp: string;
+  roll?: number;
+  pitch?: number;
   read?: boolean;
   vehicleInfo?: {
     plate_number: string;
@@ -84,36 +87,131 @@ const DeveloperAlerts = () => {
       
       if (developerError) throw developerError;
       
+      console.log('Developer assigned_vehicle_ids:', developerData?.assigned_vehicle_ids);
+      
       if (!developerData?.assigned_vehicle_ids?.length) {
         setAlerts([]);
         setFilteredAlerts([]);
         setLoading(false);
-        return;
+        return null;
       }
       
-      // Fetch alerts for the assigned vehicles
-      const { data: alertsData, error: alertsError } = await supabase
-        .from('alerts')
-        .select('*')
-        .in('vehicle_id', developerData.assigned_vehicle_ids)
-        .order('timestamp', { ascending: false });
-      
-      if (alertsError) throw alertsError;
+      // Fetch device IDs for developer's assigned vehicles
+      const { data: devices, error: devicesError } = await supabase
+        .from('devices')
+        .select('id, vehicle_id')
+        .in('vehicle_id', developerData.assigned_vehicle_ids);
+      if (devicesError) throw devicesError;
+      const deviceIds = (devices || []).map(d => d.id);
+      console.log('Mapped device IDs for this dev:', deviceIds);
 
-      // Fetch vehicle info for each alert
-      const enrichedAlerts = await Promise.all((alertsData || []).map(async (alert) => {
+      // Calculate timestamp for 3 hours ago
+      const now = new Date();
+      const threeHoursAgo = new Date(now.getTime() - 3 * 60 * 60 * 1000).toISOString();
+      console.log('Fetching positions from:', threeHoursAgo, 'to now:', now.toISOString());
+
+      // Fetch all vehicle_positions for these device IDs in the last 3 hours
+      const { data: positionsData, error: positionsError } = await supabase
+        .from('vehicle_positions')
+        .select('*')
+        .in('device_id', deviceIds)
+        .gte('created_at', threeHoursAgo)
+        .order('created_at', { ascending: false });
+      if (positionsError) throw positionsError;
+      console.log('All vehicle_positions for this dev:', positionsData);
+
+      // Fetch ALL vehicle_positions in DB for debug
+      const { data: allPositions } = await supabase.from('vehicle_positions').select('*');
+      console.log('ALL vehicle_positions in DB:', allPositions);
+
+      // Generate alerts from positions
+      const alertsFromPositions = (positionsData || []).map((pos) => {
+        let type = 'info';
+        let reasons: string[] = [];
+        // Speed logic
+        if (pos.speed > 120) {
+          type = 'critical';
+          reasons.push(`Overspeeding: ${pos.speed} km/h`);
+        } else if (pos.speed > 90) {
+          type = type === 'critical' ? type : 'warning';
+          reasons.push(`High speed: ${pos.speed} km/h`);
+        } else if (pos.speed < 1) {
+          reasons.push('Vehicle stopped or idling');
+        }
+
+        // Acceleration logic
+        if (typeof pos.accel_x === 'number' && Math.abs(pos.accel_x) > 3) {
+          type = 'critical';
+          reasons.push(`Harsh accel/brake: accel_x=${pos.accel_x.toFixed(2)} m/s²`);
+        }
+        if (typeof pos.accel_y === 'number' && Math.abs(pos.accel_y) > 3) {
+          type = 'warning';
+          reasons.push(`Sharp turn/swerve: accel_y=${pos.accel_y.toFixed(2)} m/s²`);
+        }
+        if (typeof pos.accel_z === 'number' && Math.abs(pos.accel_z) > 5) {
+          type = 'critical';
+          reasons.push(`Possible bump/crash: accel_z=${pos.accel_z.toFixed(2)} m/s²`);
+        } else if (typeof pos.accel_z === 'number' && Math.abs(pos.accel_z) > 3) {
+          type = type === 'critical' ? type : 'warning';
+          reasons.push(`Bump detected: accel_z=${pos.accel_z.toFixed(2)} m/s²`);
+        }
+
+        // Pitch/Roll logic
+        if (typeof pos.roll === 'number' && Math.abs(pos.roll) > 20) {
+          type = 'critical';
+          reasons.push(`Extreme roll: ${pos.roll}°`);
+        } else if (typeof pos.roll === 'number' && Math.abs(pos.roll) > 10) {
+          type = type === 'critical' ? type : 'warning';
+          reasons.push(`Moderate roll: ${pos.roll}°`);
+        }
+        if (typeof pos.pitch === 'number' && Math.abs(pos.pitch) > 20) {
+          type = 'critical';
+          reasons.push(`Extreme pitch: ${pos.pitch}°`);
+        } else if (typeof pos.pitch === 'number' && Math.abs(pos.pitch) > 10) {
+          type = type === 'critical' ? type : 'warning';
+          reasons.push(`Moderate pitch: ${pos.pitch}°`);
+        }
+
+        // Crash/rollover detection (combine accel_z and roll/pitch)
+        if (
+          typeof pos.accel_z === 'number' && Math.abs(pos.accel_z) > 8 &&
+          ((typeof pos.roll === 'number' && Math.abs(pos.roll) > 20) || (typeof pos.pitch === 'number' && Math.abs(pos.pitch) > 20))
+        ) {
+          type = 'critical';
+          reasons.push('Possible crash or rollover!');
+        }
+
+        // Compose description
+        let description = reasons.length > 0 ? reasons.join(' | ') : `Speed: ${pos.speed} km/h`;
+
+        return {
+          id: pos.id,
+          vehicle_id: pos.device_id,
+          description,
+          type,
+          timestamp: pos.created_at,
+          roll: pos.roll,
+          pitch: pos.pitch,
+          accel_x: pos.accel_x,
+          accel_y: pos.accel_y,
+          accel_z: pos.accel_z,
+        };
+      });
+
+      // Enrich with vehicle info
+      const enrichedAlerts = await Promise.all(alertsFromPositions.map(async (alert) => {
         const { data: vehicleData } = await supabase
           .from('vehicles')
           .select('plate_number')
           .eq('id', alert.vehicle_id)
           .single();
-        
         return {
           ...alert,
           vehicleInfo: vehicleData || { plate_number: 'Unknown' }
         };
       }));
       
+      console.log('Generated enrichedAlerts from positions:', enrichedAlerts);
       setAlerts(enrichedAlerts);
       setFilteredAlerts(enrichedAlerts);
     } catch (error) {
@@ -218,7 +316,7 @@ const DeveloperAlerts = () => {
   const markAllAsRead = () => {
     const allIds = alerts.map(alert => alert.id);
     setReadAlerts(new Set(allIds));
-    toast.success('All alerts marked as read');
+    toast.success('All alerts marked as read', { description: '' });
   };
 
   if (loading) {
@@ -317,6 +415,9 @@ const DeveloperAlerts = () => {
                         {alert.vehicleInfo?.plate_number} - {alert.description.slice(0, 50)}
                         {alert.description.length > 50 ? '...' : ''}
                       </h4>
+                      <div className="text-xs text-theme-terracotta/80">
+                        Roll: {typeof alert.roll === 'number' ? `${alert.roll}°` : 'N/A'} | Pitch: {typeof alert.pitch === 'number' ? `${alert.pitch}°` : 'N/A'}
+                      </div>
                       {!readAlerts.has(alert.id) && (
                         <span className="h-2 w-2 bg-theme-terracotta rounded-full ml-2"></span>
                       )}
