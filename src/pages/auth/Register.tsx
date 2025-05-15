@@ -1,15 +1,13 @@
-import { useState, useEffect } from "react";
+
+import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { toast } from "@/lib/toastUtils";
+import { toast } from "sonner";
 import { supabase } from "@/lib/supabase";
-
-// Whitelist of emails that can access the registration page
-const ALLOWED_CREATOR_EMAILS = ["admin@autotrace.com"];
 
 const Register = () => {
   const [email, setEmail] = useState("");
@@ -22,19 +20,8 @@ const Register = () => {
   const [companyName, setCompanyName] = useState("");
   const [address, setAddress] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [isAuthorized, setIsAuthorized] = useState(false);
-  const [accessCode, setAccessCode] = useState("");
   const { signUp } = useAuth();
   const navigate = useNavigate();
-
-  // Check if there's a creator access code in URL
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const code = params.get('accessCode');
-    if (code === "autotrace2025creator") {
-      setIsAuthorized(true);
-    }
-  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -94,92 +81,17 @@ const Register = () => {
     }
   };
 
-  // Handle verification check
-  const handleVerifyAccess = () => {
-    if (accessCode === "autotrace2025creator" || ALLOWED_CREATOR_EMAILS.includes(email)) {
-      setIsAuthorized(true);
-    } else {
-      toast.error("Invalid access code");
-    }
-  };
-
-  // If not authorized, show access verification screen
-  if (!isAuthorized) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-[#210F37] py-12 px-4">
-        <div className="w-full max-w-md space-y-8">
-          <div className="text-center">
-            <h1 className="text-3xl font-bold text-[#DCA06D] font-serif tracking-wider">
-              <span className="text-4xl">A</span>utotrace
-            </h1>
-            <p className="mt-2 text-[#A55B4B]">Creator access required</p>
-          </div>
-
-          <Card className="border-[#4F1C51]/20 bg-white/95">
-            <CardHeader>
-              <CardTitle className="text-[#210F37]">Restricted Area</CardTitle>
-              <CardDescription>
-                This page is only accessible to the creator of Autotrace
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="Creator email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="accessCode">Access Code</Label>
-                <Input
-                  id="accessCode"
-                  type="password"
-                  placeholder="Enter creator access code"
-                  value={accessCode}
-                  onChange={(e) => setAccessCode(e.target.value)}
-                />
-              </div>
-            </CardContent>
-            <CardFooter>
-              <Button 
-                className="w-full bg-[#4F1C51] hover:bg-[#210F37]"
-                onClick={handleVerifyAccess}
-              >
-                Verify Access
-              </Button>
-            </CardFooter>
-            <div className="pb-4 text-center">
-              <Link
-                to="/login"
-                className="text-sm font-medium text-[#4F1C51] hover:text-[#210F37]"
-              >
-                Return to Login
-              </Link>
-            </div>
-          </Card>
-        </div>
-      </div>
-    );
-  }
-
-  // Original registration form for authorized users
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#210F37] py-12 px-4">
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4">
       <div className="w-full max-w-3xl space-y-8">
         <div className="text-center">
-          <h1 className="text-3xl font-bold text-[#DCA06D] font-serif tracking-wider">
-            <span className="text-4xl">A</span>utotrace
-          </h1>
-          <p className="mt-2 text-[#A55B4B]">Register your company account</p>
+          <h1 className="text-3xl font-bold text-fleet-700">autotrace</h1>
+          <p className="mt-2 text-gray-600">Register your company account</p>
         </div>
 
-        <Card className="border-[#4F1C51]/20 bg-white/95">
+        <Card>
           <CardHeader>
-            <CardTitle className="text-[#210F37]">Create Admin Account</CardTitle>
+            <CardTitle>Create Admin Account</CardTitle>
             <CardDescription>
               Enter your information to create your administrator account
             </CardDescription>
@@ -299,7 +211,7 @@ const Register = () => {
             <CardFooter className="flex flex-col space-y-4">
               <Button 
                 type="submit" 
-                className="w-full bg-[#4F1C51] hover:bg-[#210F37]" 
+                className="w-full bg-fleet-600 hover:bg-fleet-700" 
                 disabled={isLoading}
               >
                 {isLoading ? "Creating Account..." : "Create Account"}
@@ -308,7 +220,7 @@ const Register = () => {
                 Already have an account?{" "}
                 <Link
                   to="/login"
-                  className="font-medium text-[#4F1C51] hover:text-[#210F37]"
+                  className="font-medium text-fleet-600 hover:text-fleet-700"
                 >
                   Sign in
                 </Link>

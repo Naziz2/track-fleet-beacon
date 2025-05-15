@@ -2,17 +2,22 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
-import { toast } from '@/lib/toastUtils';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { toast } from '@/hooks/use-toast';
 import { Bell, AlertTriangle, Info, Check, Search, AlertCircle, Clock } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter
+} from '@/components/ui/dialog';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { cn, formatDate } from '@/lib/utils';
-import { processRecentPositions } from '@/services/alertService';
 
 interface AlertItem {
   id: string;
@@ -36,7 +41,6 @@ const DeveloperAlerts = () => {
   const [selectedAlert, setSelectedAlert] = useState<AlertItem | null>(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [readAlerts, setReadAlerts] = useState<Set<string>>(new Set());
-  const [processingPositions, setProcessingPositions] = useState(false);
 
   useEffect(() => {
     fetchAlerts();
@@ -146,30 +150,6 @@ const DeveloperAlerts = () => {
     }
   };
 
-  // Function to process recent positions and generate alerts
-  const handleProcessPositions = async () => {
-    setProcessingPositions(true);
-    try {
-      const newAlerts = await processRecentPositions();
-      if (newAlerts.length > 0) {
-        toast.info(`Generated ${newAlerts.length} new alerts`, {
-          description: "New alerts have been created based on vehicle positions"
-        });
-        // Refresh alerts to include newly created ones
-        fetchAlerts();
-      } else {
-        toast.info("No new alerts", {
-          description: "No alert conditions detected in recent vehicle data"
-        });
-      }
-    } catch (error) {
-      console.error("Error processing positions:", error);
-      toast.error("Failed to process vehicle positions");
-    } finally {
-      setProcessingPositions(false);
-    }
-  };
-
   const applyFilters = () => {
     let filtered = alerts;
     
@@ -230,6 +210,11 @@ const DeveloperAlerts = () => {
     }
   };
 
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
+  };
+
   const markAllAsRead = () => {
     const allIds = alerts.map(alert => alert.id);
     setReadAlerts(new Set(allIds));
@@ -240,8 +225,8 @@ const DeveloperAlerts = () => {
     return (
       <div className="flex h-full items-center justify-center p-8">
         <div className="text-center">
-          <div className="animate-spin h-8 w-8 border-4 border-[#4F1C51] border-t-transparent rounded-full mx-auto mb-4"></div>
-          <p className="text-[#4F1C51]">Loading alerts...</p>
+          <div className="animate-spin h-8 w-8 border-4 border-theme-deepPurple border-t-transparent rounded-full mx-auto mb-4"></div>
+          <p className="text-theme-deepPurple">Loading alerts...</p>
         </div>
       </div>
     );
@@ -251,22 +236,22 @@ const DeveloperAlerts = () => {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-[#210F37]">Alerts</h1>
-          <p className="text-[#A55B4B]">Monitor vehicle alerts and notifications</p>
+          <h1 className="text-2xl font-bold tracking-tight text-theme-darkPurple">Alerts</h1>
+          <p className="text-theme-terracotta">Monitor vehicle alerts and notifications</p>
         </div>
         <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
           <div className="relative flex-grow sm:flex-grow-0">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-[#A55B4B]" />
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-theme-terracotta" />
             <Input
               type="search"
               placeholder="Search alerts..."
-              className="w-full sm:w-[200px] pl-9 border-[#DCA06D]/30 focus:border-[#4F1C51]"
+              className="w-full sm:w-[200px] pl-9 border-theme-lightBrown/30 focus:border-theme-deepPurple"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
           <Select value={filterType} onValueChange={setFilterType}>
-            <SelectTrigger className="w-[120px] border-[#DCA06D]/30 focus:border-[#4F1C51]">
+            <SelectTrigger className="w-[120px] border-theme-lightBrown/30 focus:border-theme-deepPurple">
               <SelectValue placeholder="Filter by" />
             </SelectTrigger>
             <SelectContent>
@@ -280,64 +265,46 @@ const DeveloperAlerts = () => {
             variant="outline" 
             size="sm" 
             onClick={markAllAsRead}
-            className="border-[#A55B4B]/20 text-[#A55B4B] hover:bg-[#A55B4B]/10"
+            className="border-theme-terracotta/20 text-theme-terracotta hover:bg-theme-terracotta/10"
           >
             <Check className="h-4 w-4 mr-2" />
             Mark All Read
-          </Button>
-          <Button
-            variant="default"
-            size="sm"
-            onClick={handleProcessPositions}
-            disabled={processingPositions}
-            className="bg-[#4F1C51] hover:bg-[#210F37]"
-          >
-            {processingPositions ? "Processing..." : "Generate Alerts"}
           </Button>
         </div>
       </div>
 
       {filteredAlerts.length === 0 ? (
-        <Card className="border-[#DCA06D]/20 shadow-md">
+        <Card className="border-theme-lightBrown/20 shadow-md">
           <CardContent className="pt-10 pb-10 text-center">
             <div className="flex justify-center mb-4">
-              <div className="bg-[#DCA06D]/10 p-4 rounded-full">
-                <Bell className="h-10 w-10 text-[#A55B4B]/50" />
+              <div className="bg-theme-lightBrown/10 p-4 rounded-full">
+                <Bell className="h-10 w-10 text-theme-terracotta/50" />
               </div>
             </div>
-            <h3 className="text-lg font-medium mb-1 text-[#210F37]">No alerts found</h3>
-            <p className="text-[#A55B4B]/70">
+            <h3 className="text-lg font-medium mb-1 text-theme-darkPurple">No alerts found</h3>
+            <p className="text-theme-terracotta/70">
               {searchTerm || filterType !== 'all' 
                 ? "Try adjusting your search or filters" 
                 : "You don't have any alerts right now"}
             </p>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleProcessPositions}
-              disabled={processingPositions}
-              className="mt-4 border-[#4F1C51] text-[#4F1C51] hover:bg-[#4F1C51]/10"
-            >
-              Check for New Alerts
-            </Button>
           </CardContent>
         </Card>
       ) : (
-        <Card className="border-[#DCA06D]/20 shadow-md overflow-hidden">
-          <CardHeader className="bg-[#210F37]/5 border-b border-[#DCA06D]/20">
-            <CardTitle className="text-[#210F37]">System Alerts</CardTitle>
+        <Card className="border-theme-lightBrown/20 shadow-md overflow-hidden">
+          <CardHeader className="bg-theme-darkPurple/5 border-b border-theme-lightBrown/20">
+            <CardTitle className="text-theme-darkPurple">System Alerts</CardTitle>
             <CardDescription>
               {filteredAlerts.length} alert{filteredAlerts.length !== 1 ? 's' : ''} found
             </CardDescription>
           </CardHeader>
           <CardContent className="p-0">
-            <div className="divide-y divide-[#DCA06D]/20">
+            <div className="divide-y divide-theme-lightBrown/20">
               {filteredAlerts.map(alert => (
                 <div 
                   key={alert.id} 
                   className={cn(
-                    "p-4 hover:bg-[#DCA06D]/5 cursor-pointer flex items-center transition-colors",
-                    readAlerts.has(alert.id) ? "bg-white" : "bg-[#DCA06D]/10"
+                    "p-4 hover:bg-theme-lightBrown/5 cursor-pointer flex items-center transition-colors",
+                    readAlerts.has(alert.id) ? "bg-white" : "bg-theme-lightBrown/10"
                   )}
                   onClick={() => handleAlertClick(alert)}
                 >
@@ -346,15 +313,15 @@ const DeveloperAlerts = () => {
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between mb-1">
-                      <h4 className="font-medium text-[#210F37] truncate">
+                      <h4 className="font-medium text-theme-darkPurple truncate">
                         {alert.vehicleInfo?.plate_number} - {alert.description.slice(0, 50)}
                         {alert.description.length > 50 ? '...' : ''}
                       </h4>
                       {!readAlerts.has(alert.id) && (
-                        <span className="h-2 w-2 bg-[#A55B4B] rounded-full ml-2"></span>
+                        <span className="h-2 w-2 bg-theme-terracotta rounded-full ml-2"></span>
                       )}
                     </div>
-                    <div className="flex items-center text-sm text-[#A55B4B]/70 gap-2">
+                    <div className="flex items-center text-sm text-theme-terracotta/70 gap-2">
                       <Clock className="h-3 w-3" />
                       <span>{formatDate(alert.timestamp)}</span>
                       <div className="ml-auto">
@@ -371,13 +338,13 @@ const DeveloperAlerts = () => {
 
       {/* Alert Detail Dialog */}
       <Dialog open={isDetailOpen} onOpenChange={setIsDetailOpen}>
-        <DialogContent className="sm:max-w-md bg-white border-[#DCA06D]/30">
+        <DialogContent className="sm:max-w-md bg-white border-theme-lightBrown/30">
           <DialogHeader>
-            <DialogTitle className="flex items-center text-[#210F37]">
+            <DialogTitle className="flex items-center text-theme-darkPurple">
               {selectedAlert && getAlertTypeIcon(selectedAlert.type)}
               <span className="ml-2">Alert Details</span>
             </DialogTitle>
-            <DialogDescription className="text-[#A55B4B]/70">
+            <DialogDescription className="text-theme-terracotta/70">
               Complete information about the selected alert
             </DialogDescription>
           </DialogHeader>
@@ -407,26 +374,26 @@ const DeveloperAlerts = () => {
               </Alert>
               
               <div className="grid grid-cols-2 gap-3">
-                <div className="text-sm font-medium text-[#4F1C51]">Vehicle Plate</div>
-                <div className="text-[#210F37]">{selectedAlert.vehicleInfo?.plate_number}</div>
+                <div className="text-sm font-medium text-theme-deepPurple">Vehicle Plate</div>
+                <div className="text-theme-darkPurple">{selectedAlert.vehicleInfo?.plate_number}</div>
                 
-                <div className="text-sm font-medium text-[#4F1C51]">Vehicle ID</div>
-                <div className="text-[#210F37]">{selectedAlert.vehicle_id}</div>
+                <div className="text-sm font-medium text-theme-deepPurple">Vehicle ID</div>
+                <div className="text-theme-darkPurple">{selectedAlert.vehicle_id}</div>
                 
-                <div className="text-sm font-medium text-[#4F1C51]">Date & Time</div>
-                <div className="text-[#210F37]">{formatDate(selectedAlert.timestamp)}</div>
+                <div className="text-sm font-medium text-theme-deepPurple">Date & Time</div>
+                <div className="text-theme-darkPurple">{formatDate(selectedAlert.timestamp)}</div>
                 
-                <div className="text-sm font-medium text-[#4F1C51]">Alert Type</div>
+                <div className="text-sm font-medium text-theme-deepPurple">Alert Type</div>
                 <div>{getAlertTypeBadge(selectedAlert.type)}</div>
                 
-                <div className="text-sm font-medium text-[#4F1C51]">Alert ID</div>
-                <div className="text-[#210F37] text-xs font-mono">{selectedAlert.id}</div>
+                <div className="text-sm font-medium text-theme-deepPurple">Alert ID</div>
+                <div className="text-theme-darkPurple text-xs font-mono">{selectedAlert.id}</div>
               </div>
               
               <DialogFooter>
                 <Button 
                   onClick={() => setIsDetailOpen(false)}
-                  className="bg-[#4F1C51] hover:bg-[#210F37]"
+                  className="bg-theme-deepPurple hover:bg-theme-darkPurple"
                 >
                   Close
                 </Button>

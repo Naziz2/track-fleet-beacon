@@ -1,102 +1,164 @@
 
-import { useEffect } from "react";
+import React from "react";
+import { Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
-import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 
 const Index = () => {
-  const { userRole } = useAuth();
-  const navigate = useNavigate();
-  
-  // Redirect logged-in users
-  useEffect(() => {
-    if (userRole === "admin") {
-      navigate("/admin/dashboard");
-    } else if (userRole === "developer") {
-      navigate("/developer/dashboard");
-    }
-  }, [userRole, navigate]);
+  const { user } = useAuth();
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-900 to-gray-800">
-      <div className="container mx-auto px-4 py-16">
-        <header className="text-center mb-16">
-          <h1 className="text-5xl md:text-7xl font-serif font-bold mb-6 text-[#DCA06D] tracking-wider">
-            <span className="text-6xl md:text-8xl">A</span>utotrace
+    <div className="min-h-screen bg-gradient-to-b from-theme-darkPurple to-theme-deepPurple flex flex-col">
+      {/* Header */}
+      <header className="p-4 md:p-6 flex justify-between items-center">
+        <div className="flex items-center">
+          <h1 className="text-3xl md:text-4xl font-bold text-white font-['Orbitron']">
+            <span className="text-theme-lightBrown">A</span>utotrace
           </h1>
-          <p className="text-xl text-white/80 max-w-2xl mx-auto">
-            Advanced vehicle tracking and fleet management system
-          </p>
-        </header>
-        
-        <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
-          <div className="space-y-8">
-            <div className="bg-white/5 backdrop-blur-sm p-8 rounded-xl border border-white/10">
-              <h2 className="text-3xl font-bold text-[#DCA06D] mb-6">Fleet Management Simplified</h2>
-              <p className="text-white/80 mb-6">
-                Autotrace delivers powerful real-time tracking and analytics for your entire fleet, 
-                helping you optimize routes, reduce fuel consumption, and improve safety.
-              </p>
-              <ul className="space-y-3">
-                <li className="flex items-center text-white/80">
-                  <svg className="w-5 h-5 text-[#DCA06D] mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                  </svg>
-                  Real-time GPS tracking with accurate location data
-                </li>
-                <li className="flex items-center text-white/80">
-                  <svg className="w-5 h-5 text-[#DCA06D] mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                  </svg>
-                  Comprehensive alert system based on vehicle telemetrics
-                </li>
-                <li className="flex items-center text-white/80">
-                  <svg className="w-5 h-5 text-[#DCA06D] mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                  </svg>
-                  Advanced analytics and reporting dashboard
-                </li>
-              </ul>
-            </div>
-
-            <div>
-              <Button asChild className="bg-[#4F1C51] hover:bg-[#210F37] transition-colors duration-300 px-8 py-3 rounded-md text-white text-lg">
-                <Link to="/login">Login to Dashboard</Link>
+        </div>
+        <div className="space-x-2">
+          {user ? (
+            <Button 
+              asChild
+              variant="outline" 
+              className="bg-theme-deepPurple/50 text-white border-theme-lightBrown/30 hover:bg-theme-deepPurple hover:text-white"
+            >
+              <Link to={user.user_metadata?.role === 'developer' ? '/developer/dashboard' : '/admin/dashboard'}>
+                Go to Dashboard
+              </Link>
+            </Button>
+          ) : (
+            <div className="space-x-2">
+              <Button 
+                asChild
+                variant="outline" 
+                className="text-white border-theme-lightBrown/30 hover:bg-theme-deepPurple/40 hover:text-white"
+              >
+                <Link to="/register">Sign Up</Link>
+              </Button>
+              <Button 
+                asChild
+                className="bg-theme-terracotta hover:bg-theme-lightBrown text-white"
+              >
+                <Link to="/login">Login</Link>
               </Button>
             </div>
-          </div>
+          )}
+        </div>
+      </header>
 
-          <div className="relative">
-            <div className="absolute inset-0 bg-gradient-to-r from-[#DCA06D]/20 to-transparent rounded-2xl transform -rotate-3"></div>
-            <div className="bg-[#210F37]/40 backdrop-blur-sm border border-white/10 p-8 rounded-xl relative z-10">
-              <h3 className="text-2xl font-bold text-[#DCA06D] mb-4">Why Choose Autotrace?</h3>
-              <p className="text-white/80 mb-6">
-                With Autotrace, you get a comprehensive solution that combines cutting-edge 
-                technology with ease of use, delivering real value to your fleet management operations.
-              </p>
-              
-              <div className="space-y-4">
-                <div className="bg-white/5 p-4 rounded-lg">
-                  <h4 className="font-medium text-[#DCA06D]">Powerful Analytics</h4>
-                  <p className="text-sm text-white/60">
-                    Transform raw data into actionable insights with our advanced reporting tools
-                  </p>
-                </div>
-                <div className="bg-white/5 p-4 rounded-lg">
-                  <h4 className="font-medium text-[#DCA06D]">Enterprise Security</h4>
-                  <p className="text-sm text-white/60">
-                    Bank-level data protection ensures your fleet information stays secure
-                  </p>
-                </div>
-              </div>
-            </div>
+      {/* Hero */}
+      <section className="flex-1 flex flex-col justify-center items-center text-center p-6 mt-6 md:mt-0 animate-fade-in">
+        <div className="max-w-4xl">
+          <h2 className="text-4xl md:text-6xl font-bold text-white mb-6 leading-tight">
+            Smart Vehicle Tracking & Monitoring Solution
+          </h2>
+          <p className="text-lg md:text-xl text-theme-lightBrown/90 mb-8 max-w-2xl mx-auto">
+            Real-time GPS tracking, vehicle diagnostics, and analytics for fleet management. Build for safety, efficiency and control.
+          </p>
+          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <Button asChild size="lg" className="bg-theme-terracotta hover:bg-theme-lightBrown text-white px-8 py-6 text-lg">
+              <Link to={user ? (user.user_metadata?.role === 'developer' ? '/developer/dashboard' : '/admin/dashboard') : '/register'}>
+                {user ? 'Go to Dashboard' : 'Get Started'}
+              </Link>
+            </Button>
+            <Button asChild size="lg" variant="outline" className="border-theme-lightBrown/40 text-white hover:bg-theme-deepPurple/40 px-8 py-6 text-lg">
+              <a href="#features">Learn More</a>
+            </Button>
           </div>
         </div>
-        
-        <footer className="mt-20 text-center text-white/40 text-sm">
-          <p>&copy; {new Date().getFullYear()} Autotrace. All rights reserved.</p>
-        </footer>
-      </div>
+      </section>
+
+      {/* Features */}
+      <section id="features" className="py-16 px-6 md:px-10 bg-theme-darkPurple/80 backdrop-blur-sm">
+        <div className="max-w-6xl mx-auto">
+          <h2 className="text-3xl md:text-4xl font-bold text-center text-white mb-12">
+            Advanced Vehicle Management Features
+          </h2>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {[
+              {
+                title: "Real-Time Tracking",
+                description: "Monitor your fleet with precise GPS tracking and instant location updates.",
+                icon: "📍"
+              },
+              {
+                title: "Vehicle Diagnostics",
+                description: "Get detailed insights into vehicle health and performance metrics.",
+                icon: "🔧"
+              },
+              {
+                title: "Alerts & Notifications",
+                description: "Receive instant alerts for critical events and anomalies.",
+                icon: "🔔"
+              },
+              {
+                title: "Route Optimization",
+                description: "Optimize routes for efficiency and reduced fuel consumption.",
+                icon: "🛣️"
+              },
+              {
+                title: "Custom Analytics",
+                description: "Generate detailed reports on fleet performance and driver behavior.",
+                icon: "📊"
+              },
+              {
+                title: "Secure Access Control",
+                description: "Control who can access vehicle data with role-based permissions.",
+                icon: "🔐"
+              }
+            ].map((feature, i) => (
+              <Card key={i} className="backdrop-blur-sm bg-white/5 border-theme-deepPurple/30 shadow-xl transition-all duration-300 hover:shadow-theme-deepPurple/10 hover:-translate-y-1">
+                <CardHeader>
+                  <div className="text-3xl mb-2">{feature.icon}</div>
+                  <CardTitle className="text-xl text-white">{feature.title}</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-theme-lightBrown/80">{feature.description}</p>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* CTA */}
+      <section className="py-16 px-6 bg-theme-deepPurple text-center">
+        <div className="max-w-3xl mx-auto">
+          <h2 className="text-3xl md:text-4xl font-bold text-white mb-6">
+            Ready to transform your fleet management?
+          </h2>
+          <p className="text-lg text-theme-lightBrown/90 mb-8">
+            Join thousands of businesses already using Autotrace to optimize their operations.
+          </p>
+          <Button asChild size="lg" className="bg-theme-terracotta hover:bg-theme-lightBrown text-white px-8 py-6 text-lg">
+            <Link to={user ? (user.user_metadata?.role === 'developer' ? '/developer/dashboard' : '/admin/dashboard') : '/register'}>
+              {user ? 'Go to Dashboard' : 'Get Started Today'}
+            </Link>
+          </Button>
+        </div>
+      </section>
+
+      {/* Footer */}
+      <footer className="bg-theme-darkPurple text-white py-8 px-6">
+        <div className="max-w-6xl mx-auto flex flex-col md:flex-row justify-between items-center">
+          <div className="mb-4 md:mb-0">
+            <h2 className="text-2xl font-bold font-['Orbitron']">
+              <span className="text-theme-lightBrown">A</span>utotrace
+            </h2>
+          </div>
+          <div className="flex flex-col md:flex-row gap-4 md:gap-8 text-theme-lightBrown/70">
+            <a href="#" className="hover:text-theme-lightBrown transition-colors">Privacy Policy</a>
+            <a href="#" className="hover:text-theme-lightBrown transition-colors">Terms of Service</a>
+            <a href="#" className="hover:text-theme-lightBrown transition-colors">Contact Us</a>
+          </div>
+          <div className="mt-4 md:mt-0 text-sm text-theme-lightBrown/50">
+            &copy; {new Date().getFullYear()} Autotrace. All rights reserved.
+          </div>
+        </div>
+      </footer>
     </div>
   );
 };

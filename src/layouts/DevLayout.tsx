@@ -1,219 +1,224 @@
 
 import { useState, useEffect } from "react";
-import { Outlet } from "react-router-dom";
-import { LogOut, User, Truck, Users, CreditCard, LayoutDashboard, BellRing } from "lucide-react";
-import { Sidebar } from "@/components/ui/sidebar";
-import { Button } from "@/components/ui/button";
+import { Outlet, NavLink, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
-import { useNavigate } from "react-router-dom";
-import { useIsMobile } from "@/hooks/use-mobile";
-import { SidebarNavItem } from "@/components/ui/sidebar-nav-item";
+import { Button } from "@/components/ui/button";
+import { 
+  LayoutDashboard, 
+  Car, 
+  Users, 
+  User, 
+  BellRing,
+  Menu, 
+  LogOut,
+  X,
+  Code,
+  Bell,
+  BarChart3
+} from "lucide-react";
+import { cn } from "@/lib/utils";
+import { toast } from "@/hooks/use-toast";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Badge } from "@/components/ui/badge";
 
 const DevLayout = () => {
-  const [collapsed, setCollapsed] = useState(false);
-  const [showMobileMenu, setShowMobileMenu] = useState(false);
-  const isMobile = useIsMobile();
-  const { signOut } = useAuth();
+  const { signOut, user } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [notifications, setNotifications] = useState<number>(0);
 
-  // Toggle collapsed state based on mobile detection
+  // Simulate notifications count (in a real app, this would come from an API)
   useEffect(() => {
-    setCollapsed(isMobile);
-  }, [isMobile]);
+    setNotifications(Math.floor(Math.random() * 5));
+  }, []);
 
   const handleSignOut = async () => {
     await signOut();
+    toast.success("Logged out successfully");
     navigate("/login");
   };
 
+  const navItems = [
+    {
+      title: "Dashboard",
+      href: "/developer/dashboard",
+      icon: <LayoutDashboard className="h-5 w-5" />,
+    },
+    {
+      title: "Vehicles",
+      href: "/developer/vehicles",
+      icon: <Car className="h-5 w-5" />,
+    },
+    {
+      title: "Users",
+      href: "/developer/users",
+      icon: <Users className="h-5 w-5" />,
+    },
+    {
+      title: "Profile",
+      href: "/developer/profile",
+      icon: <User className="h-5 w-5" />,
+    },
+    {
+      title: "Alerts",
+      href: "/developer/alerts",
+      icon: <Bell className="h-5 w-5" />,
+      badge: notifications,
+    },
+  ];
+
   return (
-    <div className="flex h-screen bg-[#F6F6F7]">
-      {/* Desktop Sidebar */}
-      {!isMobile && (
-        <Sidebar 
-          className="h-screen border-r border-[#DCA06D]/30 bg-[#210F37] text-white"
+    <div className="flex h-screen bg-gray-50">
+      {/* Mobile sidebar toggle */}
+      <div className="fixed top-4 left-4 z-50 lg:hidden">
+        <Button 
+          variant="outline" 
+          size="icon" 
+          onClick={() => setSidebarOpen(!sidebarOpen)}
+          className="rounded-full bg-white shadow-md"
         >
-          <div className="p-4">
-            <h1 className="text-2xl font-serif font-bold tracking-wide text-[#DCA06D]">
-              <span className="text-3xl">A</span>utotrace
-            </h1>
-            <p className="text-xs text-[#A55B4B]/80">Developer Dashboard</p>
-          </div>
-
-          <div className="space-y-1 px-2">
-            <SidebarNavItem 
-              href="/developer/dashboard" 
-              icon={<LayoutDashboard size={20} />}
-              label="Dashboard" 
-            />
-            <SidebarNavItem 
-              href="/developer/users" 
-              icon={<Users size={20} />}
-              label="Users" 
-            />
-            <SidebarNavItem 
-              href="/developer/vehicles" 
-              icon={<Truck size={20} />}
-              label="Vehicles" 
-            />
-            <SidebarNavItem 
-              href="/developer/alerts" 
-              icon={<BellRing size={20} />}
-              label="Alerts" 
-            />
-            <SidebarNavItem 
-              href="/developer/plan" 
-              icon={<CreditCard size={20} />}
-              label="Plan" 
-            />
-            <SidebarNavItem 
-              href="/developer/payment" 
-              icon={<CreditCard size={20} />}
-              label="Payments" 
-            />
-            <SidebarNavItem 
-              href="/developer/profile" 
-              icon={<User size={20} />}
-              label="Profile" 
-            />
-          </div>
-          
-          <div className="mt-auto p-2">
-            <Button 
-              onClick={handleSignOut} 
-              className="w-full justify-start bg-[#A55B4B]/10 text-[#A55B4B] hover:bg-[#A55B4B]/20"
-              variant="ghost"
-            >
-              <LogOut className="mr-2 h-4 w-4" />
-              <span>Logout</span>
-            </Button>
-          </div>
-        </Sidebar>
-      )}
-
-      {/* Mobile Menu Button */}
-      {isMobile && (
-        <Button
-          variant="ghost"
-          size="icon"
-          className="fixed left-4 top-4 z-50"
-          onClick={() => setShowMobileMenu(true)}
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-[#210F37]">
-            <line x1="3" y1="12" x2="21" y2="12"></line>
-            <line x1="3" y1="6" x2="21" y2="6"></line>
-            <line x1="3" y1="18" x2="21" y2="18"></line>
-          </svg>
-          <span className="sr-only">Toggle Menu</span>
+          {sidebarOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
         </Button>
-      )}
+      </div>
 
-      {/* Mobile Menu Dialog */}
-      <Dialog open={showMobileMenu} onOpenChange={setShowMobileMenu}>
-        <DialogContent className="sm:max-w-[300px] p-0 bg-[#210F37] text-white">
-          <div className="p-4">
-            <h1 className="text-2xl font-serif font-bold tracking-wide text-[#DCA06D]">
-              <span className="text-3xl">A</span>utotrace
+      {/* Sidebar */}
+      <aside 
+        className={cn(
+          "fixed top-0 left-0 z-40 h-full w-64 bg-gradient-to-b from-theme-darkPurple to-theme-deepPurple transform transition-transform duration-300 ease-in-out lg:translate-x-0",
+          sidebarOpen ? "translate-x-0" : "-translate-x-full"
+        )}
+      >
+        <div className="flex flex-col h-full text-gray-200">
+          {/* Logo */}
+          <div className="flex items-center justify-center h-16 border-b border-theme-deepPurple/40">
+            <h1 className="text-xl font-bold text-white flex items-center font-['Orbitron']">
+              <Code className="mr-2 h-6 w-6 text-theme-lightBrown" />
+              <span className="text-theme-lightBrown">A</span>utotrace <span className="ml-2 text-sm font-medium px-2 py-1 bg-theme-deepPurple/60 text-white rounded">Dev</span>
             </h1>
-            <p className="text-xs text-[#A55B4B]/80">Developer Dashboard</p>
           </div>
           
-          <nav className="space-y-2 p-2">
+          {/* Navigation */}
+          <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
+            {navItems.map((item) => (
+              <NavLink
+                key={item.href}
+                to={item.href}
+                className={({ isActive }) => cn(
+                  "flex items-center px-4 py-3 rounded-lg transition-colors duration-200 group relative",
+                  isActive 
+                    ? "bg-theme-deepPurple/50 text-white font-medium" 
+                    : "text-gray-300 hover:bg-theme-deepPurple/30 hover:text-white"
+                )}
+                onClick={() => {
+                  if (window.innerWidth < 1024) {
+                    setSidebarOpen(false);
+                  }
+                }}
+              >
+                {item.icon}
+                <span className="ml-3">{item.title}</span>
+                {item.badge && item.badge > 0 && (
+                  <Badge className="ml-auto bg-theme-terracotta hover:bg-theme-terracotta/80">
+                    {item.badge}
+                  </Badge>
+                )}
+              </NavLink>
+            ))}
+          </nav>
+          
+          {/* User & Logout */}
+          <div className="p-4 border-t border-theme-deepPurple/40">
+            <div className="flex items-center mb-4 bg-theme-deepPurple/30 p-3 rounded-lg">
+              <Avatar className="h-10 w-10 border-2 border-theme-deepPurple/50 shadow-sm">
+                <AvatarFallback className="bg-theme-terracotta text-white">
+                  {user?.email?.charAt(0).toUpperCase() || "D"}
+                </AvatarFallback>
+              </Avatar>
+              <div className="ml-3 overflow-hidden">
+                <p className="text-sm font-medium text-gray-100 truncate">
+                  {user?.email || "dev@autotrace.com"}
+                </p>
+                <p className="text-xs text-gray-400">Developer</p>
+              </div>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div className="ml-auto relative">
+                      <Button variant="ghost" size="icon" className="text-gray-400 hover:text-white h-8 w-8">
+                        <BellRing className="h-5 w-5" />
+                      </Button>
+                      {notifications > 0 && (
+                        <span className="absolute top-0 right-0 h-4 w-4 bg-theme-terracotta rounded-full text-white text-xs flex items-center justify-center">
+                          {notifications}
+                        </span>
+                      )}
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>You have {notifications} notifications</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </div>
             <Button 
-              variant="ghost" 
-              className="w-full justify-start"
-              onClick={() => {
-                navigate("/developer/dashboard");
-                setShowMobileMenu(false);
-              }}
-            >
-              <LayoutDashboard className="mr-2 h-5 w-5" />
-              <span>Dashboard</span>
-            </Button>
-            <Button 
-              variant="ghost" 
-              className="w-full justify-start"
-              onClick={() => {
-                navigate("/developer/users");
-                setShowMobileMenu(false);
-              }}
-            >
-              <Users className="mr-2 h-5 w-5" />
-              <span>Users</span>
-            </Button>
-            <Button 
-              variant="ghost" 
-              className="w-full justify-start"
-              onClick={() => {
-                navigate("/developer/vehicles");
-                setShowMobileMenu(false);
-              }}
-            >
-              <Truck className="mr-2 h-5 w-5" />
-              <span>Vehicles</span>
-            </Button>
-            <Button 
-              variant="ghost" 
-              className="w-full justify-start"
-              onClick={() => {
-                navigate("/developer/alerts");
-                setShowMobileMenu(false);
-              }}
-            >
-              <BellRing className="mr-2 h-5 w-5" />
-              <span>Alerts</span>
-            </Button>
-            <Button 
-              variant="ghost" 
-              className="w-full justify-start"
-              onClick={() => {
-                navigate("/developer/plan");
-                setShowMobileMenu(false);
-              }}
-            >
-              <CreditCard className="mr-2 h-5 w-5" />
-              <span>Plan</span>
-            </Button>
-            <Button 
-              variant="ghost" 
-              className="w-full justify-start"
-              onClick={() => {
-                navigate("/developer/payment");
-                setShowMobileMenu(false);
-              }}
-            >
-              <CreditCard className="mr-2 h-5 w-5" />
-              <span>Payments</span>
-            </Button>
-            <Button 
-              variant="ghost" 
-              className="w-full justify-start"
-              onClick={() => {
-                navigate("/developer/profile");
-                setShowMobileMenu(false);
-              }}
-            >
-              <User className="mr-2 h-5 w-5" />
-              <span>Profile</span>
-            </Button>
-            <Button 
-              variant="ghost" 
-              className="w-full justify-start bg-[#A55B4B]/10 text-[#A55B4B] hover:bg-[#A55B4B]/20"
+              variant="outline" 
+              className="w-full justify-start text-gray-200 hover:text-white hover:bg-theme-deepPurple/50 border border-theme-deepPurple/40"
               onClick={handleSignOut}
             >
-              <LogOut className="mr-2 h-5 w-5" />
-              <span>Logout</span>
+              <LogOut className="w-4 h-4 mr-2" />
+              Sign Out
             </Button>
-          </nav>
-        </DialogContent>
-      </Dialog>
+          </div>
+        </div>
+      </aside>
 
-      <div className="flex flex-col flex-1 overflow-hidden">
-        <main className="flex-1 overflow-y-auto p-4">
+      {/* Main Content */}
+      <div className={cn(
+        "flex-1 flex flex-col transition-all duration-300 ease-in-out",
+        sidebarOpen ? "lg:ml-64" : "ml-0"
+      )}>
+        {/* Header */}
+        <header className="bg-white border-b px-4 py-3 flex items-center justify-between sticky top-0 z-10 shadow-sm">
+          <h2 className="text-lg font-medium text-theme-darkPurple">
+            {navItems.find(item => item.href === location.pathname)?.title || "Dashboard"}
+          </h2>
+          <div className="flex items-center space-x-2">
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="ghost" size="icon" className="text-gray-500">
+                    <BellRing className="h-5 w-5" />
+                    {notifications > 0 && (
+                      <span className="absolute top-1 right-1 h-3 w-3 bg-theme-terracotta rounded-full"></span>
+                    )}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>You have {notifications} notifications</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </div>
+        </header>
+        
+        <main className="flex-1 p-4 md:p-6 overflow-y-auto bg-gray-50">
           <Outlet />
         </main>
+        
+        <footer className="py-4 px-6 border-t text-center text-sm text-gray-500 bg-white">
+          &copy; {new Date().getFullYear()} <span className="font-['Orbitron']"><span className="text-theme-terracotta">A</span>utotrace</span>. All rights reserved.
+        </footer>
       </div>
+
+      {/* Overlay for mobile */}
+      {sidebarOpen && (
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-50 z-30 lg:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
     </div>
   );
 };
