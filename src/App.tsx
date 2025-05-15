@@ -4,7 +4,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useNavigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
@@ -55,7 +55,8 @@ const ProtectedRoute = ({
   return <>{children}</>;
 };
 
-const AppRoutes = () => {
+// We need to make this a component that's used within the Router context
+const AppRoutesWithNavigate = () => {
   const { userRole } = useAuth();
   const navigate = useNavigate();
 
@@ -81,7 +82,7 @@ const AppRoutes = () => {
           <AdminLayout />
         </ProtectedRoute>
       }>
-         <Route path="dashboard" element={<AdminDashboard />} />
+        <Route path="dashboard" element={<AdminDashboard />} />
         <Route path="vehicles" element={<AdminVehicles />} />
         <Route path="developers" element={<AdminDevelopers />} />
         <Route path="users" element={<AdminUsers />} />
@@ -118,6 +119,7 @@ const queryClient = new QueryClient({
   },
 });
 
+// Modified App component to use the AppRoutesWithNavigate component
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <AuthProvider>
@@ -126,7 +128,7 @@ const App = () => (
         <Sonner position="top-right" closeButton={true} className="z-[100]" />
         <BrowserRouter>
           <div className="min-h-screen bg-gray-50 font-sans antialiased">
-            <AppRoutes />
+            <AppRoutesWithNavigate />
           </div>
         </BrowserRouter>
       </TooltipProvider>
