@@ -1,14 +1,14 @@
 
 import { useState, useEffect } from "react";
 import { Outlet } from "react-router-dom";
-import { Bell, LogOut, Home, User, Truck, Users, CreditCard, LayoutDashboard } from "lucide-react";
+import { LogOut, User, Truck, Users, CreditCard, LayoutDashboard } from "lucide-react";
 import { Sidebar } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
-import { Badge } from "@/components/ui/badge";
 import { useNavigate } from "react-router-dom";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { SidebarNavItem } from "@/components/ui/sidebar-nav-item";
 
 const AdminLayout = () => {
   const [collapsed, setCollapsed] = useState(false);
@@ -42,37 +42,37 @@ const AdminLayout = () => {
           </div>
 
           <div className="space-y-1 px-2">
-            <Sidebar.NavItem 
+            <SidebarNavItem 
               href="/admin/dashboard" 
               icon={<LayoutDashboard size={20} />}
               label="Dashboard" 
             />
-            <Sidebar.NavItem 
+            <SidebarNavItem 
               href="/admin/users" 
               icon={<Users size={20} />}
               label="Users" 
             />
-            <Sidebar.NavItem 
+            <SidebarNavItem 
               href="/admin/vehicles" 
               icon={<Truck size={20} />}
               label="Vehicles" 
             />
-            <Sidebar.NavItem 
+            <SidebarNavItem 
               href="/admin/developers" 
               icon={<User size={20} />}
               label="Developers" 
             />
-            <Sidebar.NavItem 
+            <SidebarNavItem 
               href="/admin/plan" 
               icon={<CreditCard size={20} />}
               label="Plan" 
             />
-            <Sidebar.NavItem 
+            <SidebarNavItem 
               href="/admin/payment" 
               icon={<CreditCard size={20} />}
               label="Payments" 
             />
-            <Sidebar.NavItem 
+            <SidebarNavItem 
               href="/admin/profile" 
               icon={<User size={20} />}
               label="Profile" 

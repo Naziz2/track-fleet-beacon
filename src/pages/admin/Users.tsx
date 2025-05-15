@@ -1,649 +1,392 @@
-
 import { useState, useEffect } from 'react';
-import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { toast } from '@/lib/toastUtils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Badge } from '@/components/ui/badge';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
-  MoreVertical, Search, Plus, Trash2, Edit, UserPlus, Check, X, UserX,
-  CircleSlash, CheckCircle, UserCog
-} from 'lucide-react';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { toast } from '@/hooks/use-toast';
+  Table,
+  TableBody,
+  TableCaption,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
+import {
+  Form,
+  FormControl,
+  FormDescription,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form"
+import { z } from "zod"
+import { zodResolver } from "@hookform/resolvers/zod"
+import { useForm } from "react-hook-form"
+import { User } from '@supabase/supabase-js';
+import { PlusCircle, Copy, CheckCircle, User as UserIcon } from 'lucide-react';
+import { Badge } from "@/components/ui/badge";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card"
+import { ScrollArea } from "@/components/ui/scroll-area"
 
-// User type definition
-interface User {
-  id: string;
-  first_name: string;
-  last_name: string;
-  cin: string;
-  address: string;
-  phone: string;
-  company_name: string;
-  vehicle_id: string | null;
-  admin_uid: string;
-  email?: string;
-}
+// Define a schema for user creation
+const userCreationSchema = z.object({
+  email: z.string().email({ message: "Invalid email address" }),
+  first_name: z.string().min(2, { message: "First name must be at least 2 characters." }),
+  last_name: z.string().min(2, { message: "Last name must be at least 2 characters." }),
+  phone: z.string().regex(/^(\+?\d{1,4}?)?\d{8,15}$/, { message: "Invalid phone number" }),
+  address: z.string().min(5, { message: "Address must be at least 5 characters." }),
+  created_at: z.string().datetime().optional(),
+})
 
-// Developer type definition
-interface Developer {
-  id: string;
-  first_name: string;
-  last_name: string;
-  email?: string;
-  assigned_user_ids: string[];
-}
+// Define a type for the form values based on the schema
+type UserCreationFormValues = z.infer<typeof userCreationSchema>
 
-const Users = () => {
-  const { user } = useAuth();
-  const [users, setUsers] = useState<User[]>([]);
-  const [developers, setDevelopers] = useState<Developer[]>([]);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [loading, setLoading] = useState(true);
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [isAssignDialogOpen, setIsAssignDialogOpen] = useState(false);
-  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+// Dummy user data for quick add
+const dummyUsersData = [
+  {
+    email: 'user1@example.com',
+    first_name: 'Alice',
+    last_name: 'Smith',
+    phone: '+15551234567',
+    address: '123 Highland, Some Crrek, AL',
+  },
+  {
+    email: 'user2@example.com',
+    first_name: 'Bob',
+    last_name: 'Johnson',
+    phone: '+15552345678',
+    address: '456 Lowland, Anytown, GA',
+  },
+  {
+    email: 'user3@example.com',
+    first_name: 'Charlie',
+    last_name: 'Brown',
+    phone: '+15553456789',
+    address: '789 Upland, Spring V, TX',
+  },
+];
 
-  // Form state
-  const [firstName, setFirstName] = useState('');
-  const [lastName, setLastName] = useState('');
-  const [cinNumber, setCinNumber] = useState('');
-  const [address, setAddress] = useState('');
-  const [phone, setPhone] = useState('');
-  const [companyName, setCompanyName] = useState('');
-  const [selectedDeveloper, setSelectedDeveloper] = useState<string | null>(null);
-  const [selectedUser, setSelectedUser] = useState<User | null>(null);
-  
-  // Form validation
-  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+const AdminUsers = () => {
+  const [users, setUsers] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isAddingUsers, setIsAddingUsers] = useState(false);
+  const [isCreatingUser, setIsCreatingUser] = useState(false);
+  const [isCopied, setIsCopied] = useState(false);
+  const [newUserEmail, setNewUserEmail] = useState('');
+  const [newUserPassword, setNewUserPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
 
+  // React Hook Form setup
+  const form = useForm<UserCreationFormValues>({
+    resolver: zodResolver(userCreationSchema),
+    defaultValues: {
+      email: "",
+      first_name: "",
+      last_name: "",
+      phone: "",
+      address: "",
+    },
+  })
+
+  // Fetch users on component mount
   useEffect(() => {
-    if (user) {
-      fetchUsers();
-      fetchDevelopers();
-    }
-  }, [user]);
+    fetchUsers();
+  }, []);
 
+  // Function to fetch users from Supabase
   const fetchUsers = async () => {
+    setIsLoading(true);
     try {
-      setLoading(true);
-      
-      // If admin is logged in, fetch users linked to this admin
       const { data, error } = await supabase
         .from('users')
         .select('*')
-        .eq('admin_uid', user?.id);
-      
+        .order('created_at', { ascending: false });
+
       if (error) throw error;
-      
+
       setUsers(data || []);
     } catch (error: any) {
-      console.error('Error fetching users:', error.message);
-      toast({
-        title: "Error fetching users",
+      toast.error('Failed to fetch users', {
         description: error.message,
-        variant: "destructive"
       });
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   };
 
-  const fetchDevelopers = async () => {
+  // Function to handle form submission for creating a new user
+  const onSubmit = async (values: UserCreationFormValues) => {
+    setIsCreatingUser(true);
     try {
-      // If admin is logged in, fetch developers linked to this admin
-      const { data, error } = await supabase
-        .from('developers')
-        .select('*')
-        .eq('admin_uid', user?.id);
-      
-      if (error) throw error;
-      
-      setDevelopers(data || []);
-    } catch (error: any) {
-      console.error('Error fetching developers:', error.message);
-      toast({
-        title: "Error fetching developers",
-        description: error.message,
-        variant: "destructive"
+      // Create user in Supabase Auth
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email: values.email,
+        password: 'defaultpassword', // Temporary password
+        options: {
+          data: {
+            first_name: values.first_name,
+            last_name: values.last_name,
+            phone: values.phone,
+            address: values.address,
+          },
+        },
       });
-    }
-  };
-
-  const handleCreateUser = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    // Validation
-    const errors: Record<string, string> = {};
-    if (!firstName) errors.firstName = 'First name is required';
-    if (!lastName) errors.lastName = 'Last name is required';
-    if (!cinNumber) errors.cinNumber = 'CIN number is required';
-    if (!phone) errors.phone = 'Phone number is required';
-    
-    if (Object.keys(errors).length > 0) {
-      setFormErrors(errors);
-      return;
-    }
-    
-    try {
-      // Create user in the database
-      const newUser = {
-        first_name: firstName,
-        last_name: lastName,
-        cin: cinNumber,
-        address,
-        phone,
-        company_name: companyName,
-        admin_uid: user?.id,
-      };
       
-      const { data, error } = await supabase
+      if (authError) {
+        throw authError;
+      }
+      
+      // Insert user data into the 'users' table
+      const { error: tableError } = await supabase
         .from('users')
-        .insert([newUser])
-        .select();
+        .insert([
+          {
+            id: authData.user?.id,
+            email: values.email,
+            first_name: values.first_name,
+            last_name: values.last_name,
+            phone: values.phone,
+            address: values.address,
+            created_at: new Date().toISOString(),
+          },
+        ]);
       
-      if (error) throw error;
-      
-      // Assign to developer if selected
-      if (selectedDeveloper && data && data[0]) {
-        await assignUserToDeveloper(data[0].id, selectedDeveloper);
+      if (tableError) {
+        throw tableError;
       }
       
-      toast({
-        title: "User created",
-        description: "User has been created successfully",
-        variant: "default"
-      });
-      
-      // Reset form and refresh list
-      resetForm();
-      fetchUsers();
-      setIsDialogOpen(false);
+      toast.success('User created successfully!');
+      fetchUsers(); // Refresh the user list
+      form.reset(); // Reset the form
     } catch (error: any) {
-      console.error('Error creating user:', error.message);
-      toast({
-        title: "Error creating user",
+      toast.error('Failed to create user', {
         description: error.message,
-        variant: "destructive"
       });
+    } finally {
+      setIsCreatingUser(false);
     }
   };
 
-  const assignUserToDeveloper = async (userId: string, developerId: string) => {
-    try {
-      // Get current assigned users for this developer
-      const { data: developerData, error: getError } = await supabase
-        .from('developers')
-        .select('assigned_user_ids')
-        .eq('id', developerId)
-        .single();
-      
-      if (getError) throw getError;
-      
-      if (!developerData) {
-        throw new Error('Developer not found');
-      }
-      
-      // Add this user to the assigned_user_ids array
-      const updatedUserIds = [...(developerData.assigned_user_ids || [])];
-      
-      // Only add if not already assigned
-      if (!updatedUserIds.includes(userId)) {
-        updatedUserIds.push(userId);
-      }
-      
-      // Update the developer record
-      const { error: updateError } = await supabase
-        .from('developers')
-        .update({ assigned_user_ids: updatedUserIds })
-        .eq('id', developerId);
-      
-      if (updateError) throw updateError;
-      
-      toast({
-        title: "User assigned",
-        description: "User has been assigned to the developer",
-        variant: "default"
-      });
-      fetchDevelopers();
-    } catch (error: any) {
-      console.error('Error assigning user to developer:', error.message);
-      toast({
-        title: "Error assigning user",
-        description: error.message,
-        variant: "destructive"
-      });
-    }
-  };
-
-  const handleDeleteUser = async () => {
-    if (!selectedUser) return;
+  const handleAddUsers = async () => {
+    setIsAddingUsers(true);
     
     try {
-      // First, check if user is assigned to any developers and remove the assignment
-      for (const developer of developers) {
-        if (developer.assigned_user_ids.includes(selectedUser.id)) {
-          const updatedUserIds = developer.assigned_user_ids.filter(id => id !== selectedUser.id);
-          
-          await supabase
-            .from('developers')
-            .update({ assigned_user_ids: updatedUserIds })
-            .eq('id', developer.id);
-        }
-      }
+      // Format the user data correctly with IDs for each user
+      const formattedUsers = dummyUsersData.map(user => ({
+        ...user,
+        id: crypto.randomUUID(), // Add a random UUID for the id field
+      }));
       
-      // Then delete the user
       const { error } = await supabase
         .from('users')
-        .delete()
-        .eq('id', selectedUser.id);
+        .insert(formattedUsers);
       
       if (error) throw error;
       
-      toast({
-        title: "User deleted",
-        description: "User has been deleted successfully",
-        variant: "default"
-      });
-      
-      // Refresh user list
-      fetchUsers();
-      fetchDevelopers();
-      setIsDeleteDialogOpen(false);
-      setSelectedUser(null);
+      toast.success('Users added successfully!');
+      fetchUsers(); // Refresh the user list
     } catch (error: any) {
-      console.error('Error deleting user:', error.message);
-      toast({
-        title: "Error deleting user",
+      toast.error('Failed to add users', {
         description: error.message,
-        variant: "destructive"
       });
+    } finally {
+      setIsAddingUsers(false);
     }
   };
 
-  const handleAssignUser = async () => {
-    if (!selectedUser || !selectedDeveloper) return;
-    
-    try {
-      await assignUserToDeveloper(selectedUser.id, selectedDeveloper);
-      setIsAssignDialogOpen(false);
-      setSelectedDeveloper(null);
-    } catch (error: any) {
-      console.error('Error assigning user:', error.message);
-      toast({
-        title: "Error assigning user",
-        description: error.message,
-        variant: "destructive"
-      });
-    }
-  };
-
-  const resetForm = () => {
-    setFirstName('');
-    setLastName('');
-    setCinNumber('');
-    setAddress('');
-    setPhone('');
-    setCompanyName('');
-    setSelectedDeveloper(null);
-    setFormErrors({});
-  };
-
-  // Filter users based on search query
-  const filteredUsers = users.filter(user => 
-    user.first_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    user.last_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    user.cin.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    user.phone.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    (user.company_name && user.company_name.toLowerCase().includes(searchQuery.toLowerCase()))
-  );
-
-  // Find which developer a user is assigned to
-  const findUserDeveloper = (userId: string) => {
-    for (const dev of developers) {
-      if (dev.assigned_user_ids.includes(userId)) {
-        return dev;
-      }
-    }
-    return null;
+  // Function to copy user details
+  const copyUserDetails = (user: any) => {
+    const details = `
+      Email: ${user.email || 'N/A'}
+      Name: ${user.first_name} ${user.last_name || ''}
+      Phone: ${user.phone || 'N/A'}
+      Address: ${user.address || 'N/A'}
+    `;
+    navigator.clipboard.writeText(details);
+    setIsCopied(true);
+    setTimeout(() => setIsCopied(false), 3000); // Reset after 3 seconds
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-3xl font-bold tracking-tight text-[#210F37]">User Management</h2>
-          <p className="text-[#A55B4B]">Manage your users and their information</p>
-        </div>
-        <Button className="bg-[#4F1C51] hover:bg-[#210F37]" onClick={() => setIsDialogOpen(true)}>
-          <UserPlus className="mr-2 h-4 w-4" />
-          New User
-        </Button>
-      </div>
-
-      <div className="flex items-center">
-        <div className="relative flex-1 max-w-md">
-          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-[#A55B4B]" />
-          <Input
-            placeholder="Search users..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-9 border-[#DCA06D]/30 focus:border-[#4F1C51]"
-          />
-        </div>
-      </div>
-
-      <Card className="border-[#DCA06D]/30 shadow-md">
-        <CardHeader className="bg-[#210F37]/5">
-          <CardTitle className="text-lg font-medium text-[#210F37]">Users</CardTitle>
+    <div>
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-2xl font-bold">Manage Users</CardTitle>
           <CardDescription>
-            {filteredUsers.length} user{filteredUsers.length !== 1 ? 's' : ''} found
+            View, add, and manage users of the Autotrace system.
           </CardDescription>
         </CardHeader>
-        <CardContent className="p-0">
-          {loading ? (
-            <div className="flex justify-center items-center p-8">
-              <div className="animate-spin h-8 w-8 border-4 border-[#4F1C51] border-t-transparent rounded-full"></div>
-            </div>
-          ) : filteredUsers.length === 0 ? (
-            <div className="flex flex-col items-center justify-center p-8 text-center">
-              <UserX size={48} className="text-[#A55B4B]/40 mb-4" />
-              <p className="text-lg font-medium text-[#210F37]">No users found</p>
-              <p className="text-[#A55B4B] mt-1">
-                {searchQuery ? "Try adjusting your search" : "Create your first user to get started"}
-              </p>
-              <Button 
-                className="mt-4 bg-[#4F1C51] hover:bg-[#210F37]"
-                onClick={() => setIsDialogOpen(true)}
-              >
-                <UserPlus className="mr-2 h-4 w-4" />
-                Create User
-              </Button>
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
+        <CardContent>
+          <div className="mb-4 flex justify-between items-center">
+            <Dialog>
+              <DialogTrigger asChild>
+                <Button variant="outline">
+                  <PlusCircle className="mr-2 h-4 w-4" />
+                  Add User
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-[525px]">
+                <DialogHeader>
+                  <DialogTitle>Create New User</DialogTitle>
+                  <DialogDescription>
+                    Create a new user account by filling out the form below.
+                  </DialogDescription>
+                </DialogHeader>
+                <Form {...form}>
+                  <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                    <FormField
+                      control={form.control}
+                      name="email"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Email</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Enter email" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <FormField
+                        control={form.control}
+                        name="first_name"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>First Name</FormLabel>
+                            <FormControl>
+                              <Input placeholder="First name" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="last_name"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Last Name</FormLabel>
+                            <FormControl>
+                              <Input placeholder="Last name" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                    <FormField
+                      control={form.control}
+                      name="phone"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Phone Number</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Phone number" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="address"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Address</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Address" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <Button type="submit" disabled={isCreatingUser}>
+                      {isCreatingUser ? "Creating..." : "Create User"}
+                    </Button>
+                  </form>
+                </Form>
+              </DialogContent>
+            </Dialog>
+            <Button
+              variant="secondary"
+              onClick={handleAddUsers}
+              disabled={isAddingUsers}
+            >
+              {isAddingUsers ? 'Adding Users...' : 'Add Dummy Users'}
+            </Button>
+          </div>
+
+          {isLoading ? (
+            <p>Loading users...</p>
+          ) : users.length > 0 ? (
+            <ScrollArea>
               <Table>
-                <TableHeader className="bg-[#210F37]/5">
+                <TableCaption>A list of your registered users.</TableCaption>
+                <TableHeader>
                   <TableRow>
+                    <TableHead className="w-[100px]">ID</TableHead>
+                    <TableHead>Email</TableHead>
                     <TableHead>Name</TableHead>
-                    <TableHead>CIN</TableHead>
                     <TableHead>Phone</TableHead>
-                    <TableHead>Company</TableHead>
-                    <TableHead>Assigned To</TableHead>
+                    <TableHead>Address</TableHead>
+                    <TableHead>Created At</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredUsers.map((user) => {
-                    const assignedDeveloper = findUserDeveloper(user.id);
-                    
-                    return (
-                      <TableRow key={user.id} className="hover:bg-[#DCA06D]/5">
-                        <TableCell className="font-medium">
-                          {user.first_name} {user.last_name}
-                        </TableCell>
-                        <TableCell>{user.cin}</TableCell>
-                        <TableCell>{user.phone}</TableCell>
-                        <TableCell>{user.company_name || "-"}</TableCell>
-                        <TableCell>
-                          {assignedDeveloper ? (
-                            <Badge className="bg-[#4F1C51]/20 text-[#4F1C51] border-[#4F1C51]/30 hover:bg-[#4F1C51]/30">
-                              <UserCog className="mr-1 h-3 w-3" />
-                              {assignedDeveloper.first_name} {assignedDeveloper.last_name}
-                            </Badge>
-                          ) : (
-                            <Badge variant="outline" className="text-[#A55B4B] border-[#A55B4B]/30">
-                              <CircleSlash className="mr-1 h-3 w-3" />
-                              Not Assigned
-                            </Badge>
-                          )}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" className="h-8 w-8 p-0">
-                                <MoreVertical className="h-4 w-4" />
-                                <span className="sr-only">Open menu</span>
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" className="border-[#DCA06D]/30">
-                              <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                              <DropdownMenuItem
-                                onClick={() => {
-                                  setSelectedUser(user);
-                                  setIsAssignDialogOpen(true);
-                                }}
-                              >
-                                <UserCog className="mr-2 h-4 w-4" />
-                                Assign to Developer
-                              </DropdownMenuItem>
-                              <DropdownMenuItem
-                                className="text-red-600"
-                                onClick={() => {
-                                  setSelectedUser(user);
-                                  setIsDeleteDialogOpen(true);
-                                }}
-                              >
-                                <Trash2 className="mr-2 h-4 w-4" />
-                                Delete
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
+                  {users.map((user) => (
+                    <TableRow key={user.id}>
+                      <TableCell className="font-medium">{user.id}</TableCell>
+                      <TableCell>{user.email}</TableCell>
+                      <TableCell>{user.first_name} {user.last_name}</TableCell>
+                      <TableCell>{user.phone || 'N/A'}</TableCell>
+                      <TableCell>{user.address || 'N/A'}</TableCell>
+                      <TableCell>{new Date(user.created_at).toLocaleDateString()}</TableCell>
+                      <TableCell className="text-right">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => copyUserDetails(user)}
+                          disabled={isCopied}
+                        >
+                          {isCopied ? <CheckCircle className="mr-2 h-4 w-4" /> : <Copy className="mr-2 h-4 w-4" />}
+                          {isCopied ? "Copied!" : "Copy Details"}
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
                 </TableBody>
               </Table>
+            </ScrollArea>
+          ) : (
+            <div className="flex flex-col items-center justify-center space-y-4">
+              <UserIcon className="h-10 w-10 text-gray-400" />
+              <p className="text-gray-500">No users found.</p>
             </div>
           )}
         </CardContent>
       </Card>
-
-      {/* Create User Dialog */}
-      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="sm:max-w-[600px] bg-white border-[#DCA06D]/30">
-          <DialogHeader>
-            <DialogTitle className="text-[#210F37]">Create a New User</DialogTitle>
-            <DialogDescription>
-              Fill in the user details. Click save when you're done.
-            </DialogDescription>
-          </DialogHeader>
-          <form onSubmit={handleCreateUser}>
-            <div className="grid gap-4 py-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="firstName">First Name *</Label>
-                  <Input
-                    id="firstName"
-                    value={firstName}
-                    onChange={(e) => setFirstName(e.target.value)}
-                    className={`border-[#DCA06D]/30 focus:border-[#4F1C51] ${formErrors.firstName ? 'border-red-500' : ''}`}
-                  />
-                  {formErrors.firstName && (
-                    <p className="text-red-500 text-xs">{formErrors.firstName}</p>
-                  )}
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="lastName">Last Name *</Label>
-                  <Input
-                    id="lastName"
-                    value={lastName}
-                    onChange={(e) => setLastName(e.target.value)}
-                    className={`border-[#DCA06D]/30 focus:border-[#4F1C51] ${formErrors.lastName ? 'border-red-500' : ''}`}
-                  />
-                  {formErrors.lastName && (
-                    <p className="text-red-500 text-xs">{formErrors.lastName}</p>
-                  )}
-                </div>
-              </div>
-              
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="cinNumber">CIN Number *</Label>
-                  <Input
-                    id="cinNumber"
-                    value={cinNumber}
-                    onChange={(e) => setCinNumber(e.target.value)}
-                    className={`border-[#DCA06D]/30 focus:border-[#4F1C51] ${formErrors.cinNumber ? 'border-red-500' : ''}`}
-                  />
-                  {formErrors.cinNumber && (
-                    <p className="text-red-500 text-xs">{formErrors.cinNumber}</p>
-                  )}
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="phone">Phone Number *</Label>
-                  <Input
-                    id="phone"
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    className={`border-[#DCA06D]/30 focus:border-[#4F1C51] ${formErrors.phone ? 'border-red-500' : ''}`}
-                  />
-                  {formErrors.phone && (
-                    <p className="text-red-500 text-xs">{formErrors.phone}</p>
-                  )}
-                </div>
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="address">Address</Label>
-                <Input
-                  id="address"
-                  value={address}
-                  onChange={(e) => setAddress(e.target.value)}
-                  className="border-[#DCA06D]/30 focus:border-[#4F1C51]"
-                />
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="companyName">Company Name</Label>
-                <Input
-                  id="companyName"
-                  value={companyName}
-                  onChange={(e) => setCompanyName(e.target.value)}
-                  className="border-[#DCA06D]/30 focus:border-[#4F1C51]"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="developerAssignment">Assign to Developer (Optional)</Label>
-                <Select value={selectedDeveloper || undefined} onValueChange={setSelectedDeveloper}>
-                  <SelectTrigger className="border-[#DCA06D]/30 focus:border-[#4F1C51]">
-                    <SelectValue placeholder="Select a developer" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {developers.map((dev) => (
-                      <SelectItem key={dev.id} value={dev.id}>
-                        {dev.first_name} {dev.last_name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            <DialogFooter>
-              <Button 
-                type="button" 
-                variant="outline" 
-                onClick={() => {
-                  resetForm();
-                  setIsDialogOpen(false);
-                }}
-                className="border-[#A55B4B]/30 text-[#A55B4B] hover:bg-[#A55B4B]/10"
-              >
-                Cancel
-              </Button>
-              <Button type="submit" className="bg-[#4F1C51] hover:bg-[#210F37]">
-                Save User
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
-      
-      {/* Assign User Dialog */}
-      <Dialog open={isAssignDialogOpen} onOpenChange={setIsAssignDialogOpen}>
-        <DialogContent className="sm:max-w-[425px] bg-white border-[#DCA06D]/30">
-          <DialogHeader>
-            <DialogTitle className="text-[#210F37]">Assign User to Developer</DialogTitle>
-            <DialogDescription>
-              Select a developer to assign {selectedUser?.first_name} {selectedUser?.last_name} to.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="py-4">
-            <div className="space-y-2">
-              <Label>Developer</Label>
-              <Select value={selectedDeveloper || undefined} onValueChange={setSelectedDeveloper}>
-                <SelectTrigger className="border-[#DCA06D]/30 focus:border-[#4F1C51]">
-                  <SelectValue placeholder="Select a developer" />
-                </SelectTrigger>
-                <SelectContent>
-                  {developers.map((dev) => (
-                    <SelectItem key={dev.id} value={dev.id}>
-                      {dev.first_name} {dev.last_name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button 
-              variant="outline" 
-              onClick={() => {
-                setSelectedDeveloper(null);
-                setIsAssignDialogOpen(false);
-              }}
-              className="border-[#A55B4B]/30 text-[#A55B4B] hover:bg-[#A55B4B]/10"
-            >
-              Cancel
-            </Button>
-            <Button 
-              onClick={handleAssignUser} 
-              className="bg-[#4F1C51] hover:bg-[#210F37]"
-              disabled={!selectedDeveloper}
-            >
-              Assign
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-      
-      {/* Delete User Dialog */}
-      <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-        <DialogContent className="sm:max-w-[425px] bg-white border-[#DCA06D]/30">
-          <DialogHeader>
-            <DialogTitle className="text-red-600">Delete User</DialogTitle>
-            <DialogDescription>
-              Are you sure you want to delete {selectedUser?.first_name} {selectedUser?.last_name}? 
-              This action cannot be undone.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button 
-              variant="outline" 
-              onClick={() => setIsDeleteDialogOpen(false)}
-              className="border-[#A55B4B]/30 text-[#A55B4B] hover:bg-[#A55B4B]/10"
-            >
-              Cancel
-            </Button>
-            <Button 
-              onClick={handleDeleteUser}
-              variant="destructive"
-            >
-              Delete
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 };
 
-export default Users;
+export default AdminUsers;
