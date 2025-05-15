@@ -1,8 +1,9 @@
+
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabase";
 import { Customer } from "@/types";
-import { toast } from "sonner";
+import { toast } from "@/hooks/use-toast";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Dialog,
@@ -57,11 +58,13 @@ const AdminUsers = () => {
   const [companyName, setCompanyName] = useState("");
   const [address, setAddress] = useState("");
   const [vehicleId, setVehicleId] = useState<string | null>(null);
+  const [developerId, setDeveloperId] = useState<string | null>(null);
   
-  // Available vehicles
+  // Available vehicles and developers
   const [availableVehicles, setAvailableVehicles] = useState<{id: string, plate_number: string}[]>([]);
+  const [availableDevelopers, setAvailableDevelopers] = useState<{id: string, name: string}[]>([]);
   
-  // Fetch users and vehicles
+  // Fetch users, vehicles and developers
   useEffect(() => {
     const fetchData = async () => {
       if (!user) return;
@@ -83,6 +86,20 @@ const AdminUsers = () => {
           .eq('admin_uid', user.id);
         if (vehicleError) throw vehicleError;
         setAvailableVehicles(vehicleData || []);
+
+        // Fetch available developers
+        const { data: developerData, error: developerError } = await supabase
+          .from('developers')
+          .select('id, first_name, last_name')
+          .eq('admin_uid', user.id);
+        if (developerError) throw developerError;
+        
+        // Format developer data for display
+        const formattedDevelopers = (developerData || []).map(dev => ({
+          id: dev.id,
+          name: `${dev.first_name} ${dev.last_name}`
+        }));
+        setAvailableDevelopers(formattedDevelopers);
       } catch (error) {
         console.error("Error fetching data:", error);
         toast.error("Failed to load users and vehicles");
@@ -187,6 +204,9 @@ const AdminUsers = () => {
       setCompanyName(selectedUser.company_name);
       setAddress(selectedUser.address);
       setVehicleId(selectedUser.vehicle_id);
+      // We don't have developerId in selectedUser, 
+      // so we'll need to fetch it if needed, or initialize it to null
+      setDeveloperId(null);
     } else {
       resetForm();
     }
@@ -201,6 +221,7 @@ const AdminUsers = () => {
     setCompanyName("");
     setAddress("");
     setVehicleId(null);
+    setDeveloperId(null);
   };
   
   // Dialog open/close handlers
@@ -208,12 +229,37 @@ const AdminUsers = () => {
     if (user) {
       setSelectedUser(user);
       setIsEditing(true);
+      
+      // If editing, fetch developer assignment if any
+      fetchDeveloperAssignment(user.id);
     } else {
       setSelectedUser(null);
       setIsEditing(false);
       resetForm();
     }
     setDialogOpen(true);
+  };
+  
+  // Fetch developer assignment for a user
+  const fetchDeveloperAssignment = async (userId: string) => {
+    try {
+      // Query all developers to find who has this user assigned
+      const { data: developers, error } = await supabase
+        .from('developers')
+        .select('id, assigned_user_ids')
+        .eq('admin_uid', user?.id);
+        
+      if (error) throw error;
+      
+      // Find developer who has this user in assigned_user_ids
+      const assignedDeveloper = developers?.find(dev => 
+        dev.assigned_user_ids && dev.assigned_user_ids.includes(userId)
+      );
+      
+      setDeveloperId(assignedDeveloper?.id || null);
+    } catch (error) {
+      console.error("Error fetching developer assignment:", error);
+    }
   };
   
   // Handle form submit
@@ -238,6 +284,8 @@ const AdminUsers = () => {
         admin_uid: user.id
       };
       
+      let userId = selectedUser?.id;
+      
       if (isEditing && selectedUser) {
         // Update existing user
         const { error } = await supabase
@@ -252,6 +300,7 @@ const AdminUsers = () => {
         // Create new user with UUID
         // Generate a UUID directly
         const newId = crypto.randomUUID();
+        userId = newId;
         
         // Create new user with the generated UUID
         const { error } = await supabase
@@ -266,12 +315,79 @@ const AdminUsers = () => {
         // Real-time will handle the UI update
       }
       
+      // Update developer assignment if selected
+      if (userId) {
+        if (developerId) {
+          await handleDeveloperAssignment(userId, developerId);
+        } else {
+          // If no developer selected, remove from any developer assignments
+          await removeUserFromAllDevelopers(userId);
+        }
+      }
+      
       setDialogOpen(false);
     } catch (error: any) {
       console.error("Error saving user:", error);
       toast.error("Failed to save user", { 
         description: error.message 
       });
+    }
+  };
+
+  const handleDeveloperAssignment = async (userId: string, developerId: string) => {
+    try {
+      // First remove user from any developers they might be assigned to
+      await removeUserFromAllDevelopers(userId);
+      
+      // Then add to the selected developer
+      const { data: developerData, error: getError } = await supabase
+        .from('developers')
+        .select('assigned_user_ids')
+        .eq('id', developerId)
+        .single();
+        
+      if (getError) throw getError;
+      
+      const assignedUserIds = [...(developerData?.assigned_user_ids || [])];
+      if (!assignedUserIds.includes(userId)) {
+        assignedUserIds.push(userId);
+        
+        const { error: updateError } = await supabase
+          .from('developers')
+          .update({ assigned_user_ids: assignedUserIds })
+          .eq('id', developerId);
+          
+        if (updateError) throw updateError;
+      }
+    } catch (error) {
+      console.error("Error updating developer assignment:", error);
+      toast.error("Failed to update developer assignment");
+    }
+  };
+
+  const removeUserFromAllDevelopers = async (userId: string) => {
+    try {
+      // Get all developers managed by this admin
+      const { data: developers, error: devError } = await supabase
+        .from('developers')
+        .select('id, assigned_user_ids')
+        .eq('admin_uid', user?.id);
+        
+      if (devError) throw devError;
+      
+      // Update each developer who has this user assigned
+      for (const dev of developers || []) {
+        if (dev.assigned_user_ids && dev.assigned_user_ids.includes(userId)) {
+          const updatedIds = dev.assigned_user_ids.filter(id => id !== userId);
+          
+          await supabase
+            .from('developers')
+            .update({ assigned_user_ids: updatedIds })
+            .eq('id', dev.id);
+        }
+      }
+    } catch (error) {
+      console.error("Error removing user from developers:", error);
     }
   };
   
@@ -282,6 +398,9 @@ const AdminUsers = () => {
     }
     
     try {
+      // Remove user from any developers first
+      await removeUserFromAllDevelopers(userId);
+      
       // Delete the user
       const { error } = await supabase
         .from('users')
@@ -304,12 +423,28 @@ const AdminUsers = () => {
     return vehicle ? vehicle.plate_number : 'Unknown';
   };
 
+  // Get developer assigned to user
+  const getDeveloperAssignment = (userId: string) => {
+    for (const dev of availableDevelopers) {
+      const { data } = supabase
+        .from('developers')
+        .select('assigned_user_ids')
+        .eq('id', dev.id)
+        .single();
+        
+      if (data && data.assigned_user_ids && data.assigned_user_ids.includes(userId)) {
+        return dev.name;
+      }
+    }
+    return 'None';
+  };
+
   if (loading) {
     return (
       <div className="flex h-full items-center justify-center p-8">
         <div className="text-center">
-          <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full mx-auto mb-4"></div>
-          <p>Loading users...</p>
+          <div className="animate-spin h-8 w-8 border-4 border-theme-deepPurple border-t-transparent rounded-full mx-auto mb-4"></div>
+          <p className="text-theme-deepPurple">Loading users...</p>
         </div>
       </div>
     );
@@ -319,19 +454,22 @@ const AdminUsers = () => {
     <>
       <div className="space-y-6">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <h1 className="text-2xl font-bold tracking-tight">User Management</h1>
+          <h1 className="text-2xl font-bold tracking-tight text-theme-darkPurple">User Management</h1>
           <div className="flex items-center gap-4 w-full sm:w-auto">
             <div className="relative flex-grow sm:flex-grow-0">
-              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
+              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-theme-terracotta" />
               <Input
                 type="search"
                 placeholder="Search users..."
-                className="w-full sm:w-[250px] pl-9"
+                className="w-full sm:w-[250px] pl-9 border-theme-lightBrown/30 focus:border-theme-deepPurple"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
             </div>
-            <Button onClick={() => handleOpenDialog()}>
+            <Button 
+              onClick={() => handleOpenDialog()}
+              className="bg-theme-deepPurple hover:bg-theme-darkPurple"
+            >
               <Plus className="h-4 w-4 mr-2" />
               Add User
             </Button>
@@ -339,19 +477,30 @@ const AdminUsers = () => {
         </div>
 
         {users.length === 0 ? (
-          <Card>
+          <Card className="border-theme-lightBrown/20 shadow-md">
             <CardContent className="pt-6 text-center">
-              <p className="text-muted-foreground py-8">No users found. Add your first user to get started.</p>
-              <Button onClick={() => handleOpenDialog()} className="mt-2">
-                <Plus className="h-4 w-4 mr-2" />
-                Add User
-              </Button>
+              <div className="py-12 px-6">
+                <div className="flex justify-center mb-4">
+                  <div className="bg-theme-lightBrown/10 p-3 rounded-full">
+                    <Search className="h-8 w-8 text-theme-terracotta opacity-70" />
+                  </div>
+                </div>
+                <h3 className="text-lg font-medium mb-2 text-theme-darkPurple">No users found</h3>
+                <p className="text-muted-foreground">Add your first user to get started.</p>
+                <Button 
+                  onClick={() => handleOpenDialog()} 
+                  className="mt-6 bg-theme-deepPurple hover:bg-theme-darkPurple"
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add User
+                </Button>
+              </div>
             </CardContent>
           </Card>
         ) : (
-          <Card>
+          <Card className="border-theme-lightBrown/20 shadow-md">
             <CardHeader>
-              <CardTitle>Users</CardTitle>
+              <CardTitle className="text-theme-darkPurple">Users</CardTitle>
               <CardDescription>
                 Manage your customer accounts
               </CardDescription>
@@ -359,27 +508,27 @@ const AdminUsers = () => {
             <CardContent>
               <Table>
                 <TableHeader>
-                  <TableRow>
-                    <TableHead>Name</TableHead>
-                    <TableHead>CIN</TableHead>
-                    <TableHead>Phone</TableHead>
-                    <TableHead>Company</TableHead>
-                    <TableHead>Assigned Vehicle</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
+                  <TableRow className="border-theme-lightBrown/20">
+                    <TableHead className="text-theme-deepPurple">Name</TableHead>
+                    <TableHead className="text-theme-deepPurple">CIN</TableHead>
+                    <TableHead className="text-theme-deepPurple">Phone</TableHead>
+                    <TableHead className="text-theme-deepPurple">Company</TableHead>
+                    <TableHead className="text-theme-deepPurple">Assigned Vehicle</TableHead>
+                    <TableHead className="text-right text-theme-deepPurple">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {filteredUsers.map((user) => (
-                    <TableRow key={user.id}>
-                      <TableCell className="font-medium">
+                    <TableRow key={user.id} className="border-theme-lightBrown/20 hover:bg-theme-lightBrown/5">
+                      <TableCell className="font-medium text-theme-darkPurple">
                         {user.first_name} {user.last_name}
                       </TableCell>
-                      <TableCell>{user.cin}</TableCell>
-                      <TableCell>{user.phone}</TableCell>
-                      <TableCell>{user.company_name}</TableCell>
+                      <TableCell className="text-theme-darkPurple/80">{user.cin}</TableCell>
+                      <TableCell className="text-theme-darkPurple/80">{user.phone}</TableCell>
+                      <TableCell className="text-theme-darkPurple/80">{user.company_name}</TableCell>
                       <TableCell>
                         {user.vehicle_id ? (
-                          <Badge variant="outline" className="bg-gray-100 flex items-center w-fit">
+                          <Badge variant="outline" className="bg-theme-lightBrown/10 text-theme-terracotta border-theme-terracotta/20 flex items-center w-fit">
                             <Car className="h-3 w-3 mr-1" />
                             {getVehiclePlate(user.vehicle_id)}
                           </Badge>
@@ -390,19 +539,22 @@ const AdminUsers = () => {
                       <TableCell className="text-right">
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="sm">
+                            <Button variant="ghost" size="sm" className="text-theme-deepPurple hover:text-theme-darkPurple hover:bg-theme-lightBrown/10">
                               <MoreHorizontal className="h-4 w-4" />
                               <span className="sr-only">Actions</span>
                             </Button>
                           </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => handleOpenDialog(user)}>
+                          <DropdownMenuContent align="end" className="border-theme-lightBrown/30">
+                            <DropdownMenuItem 
+                              onClick={() => handleOpenDialog(user)}
+                              className="text-theme-deepPurple hover:text-theme-darkPurple cursor-pointer"
+                            >
                               <Edit className="h-4 w-4 mr-2" />
                               Edit
                             </DropdownMenuItem>
                             <DropdownMenuItem 
                               onClick={() => handleDelete(user.id)}
-                              className="text-red-600 focus:text-red-600"
+                              className="text-red-600 focus:text-red-600 cursor-pointer"
                             >
                               <Trash className="h-4 w-4 mr-2" />
                               Delete
@@ -421,10 +573,10 @@ const AdminUsers = () => {
 
       {/* User Form Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="sm:max-w-[500px]">
+        <DialogContent className="sm:max-w-[500px] bg-white border-theme-lightBrown/30">
           <DialogHeader>
-            <DialogTitle>{isEditing ? 'Edit User' : 'Add New User'}</DialogTitle>
-            <DialogDescription>
+            <DialogTitle className="text-theme-darkPurple">{isEditing ? 'Edit User' : 'Add New User'}</DialogTitle>
+            <DialogDescription className="text-theme-terracotta/70">
               {isEditing
                 ? "Update the user details below."
                 : "Fill in the details for the new user."}
@@ -433,86 +585,86 @@ const AdminUsers = () => {
           <form onSubmit={handleSubmit}>
             <div className="grid gap-4 py-4">
               <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="first-name" className="text-right">
+                <Label htmlFor="first-name" className="text-right text-theme-deepPurple">
                   First name
                 </Label>
                 <Input
                   id="first-name"
                   value={firstName}
                   onChange={(e) => setFirstName(e.target.value)}
-                  className="col-span-3"
+                  className="col-span-3 border-theme-lightBrown/30 focus:ring-theme-deepPurple"
                   required
                 />
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="last-name" className="text-right">
+                <Label htmlFor="last-name" className="text-right text-theme-deepPurple">
                   Last name
                 </Label>
                 <Input
                   id="last-name"
                   value={lastName}
                   onChange={(e) => setLastName(e.target.value)}
-                  className="col-span-3"
+                  className="col-span-3 border-theme-lightBrown/30 focus:ring-theme-deepPurple"
                   required
                 />
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="cin" className="text-right">
+                <Label htmlFor="cin" className="text-right text-theme-deepPurple">
                   CIN
                 </Label>
                 <Input
                   id="cin"
                   value={cin}
                   onChange={(e) => setCin(e.target.value)}
-                  className="col-span-3"
+                  className="col-span-3 border-theme-lightBrown/30 focus:ring-theme-deepPurple"
                   required
                 />
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="phone" className="text-right">
+                <Label htmlFor="phone" className="text-right text-theme-deepPurple">
                   Phone
                 </Label>
                 <Input
                   id="phone"
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
-                  className="col-span-3"
+                  className="col-span-3 border-theme-lightBrown/30 focus:ring-theme-deepPurple"
                   required
                 />
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="company" className="text-right">
+                <Label htmlFor="company" className="text-right text-theme-deepPurple">
                   Company
                 </Label>
                 <Input
                   id="company"
                   value={companyName}
                   onChange={(e) => setCompanyName(e.target.value)}
-                  className="col-span-3"
+                  className="col-span-3 border-theme-lightBrown/30 focus:ring-theme-deepPurple"
                   required
                 />
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="address" className="text-right">
+                <Label htmlFor="address" className="text-right text-theme-deepPurple">
                   Address
                 </Label>
                 <Input
                   id="address"
                   value={address}
                   onChange={(e) => setAddress(e.target.value)}
-                  className="col-span-3"
+                  className="col-span-3 border-theme-lightBrown/30 focus:ring-theme-deepPurple"
                   required
                 />
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="vehicle" className="text-right">
+                <Label htmlFor="vehicle" className="text-right text-theme-deepPurple">
                   Vehicle
                 </Label>
                 <Select 
                   value={vehicleId || "none"} 
                   onValueChange={(value) => setVehicleId(value === "none" ? null : value)}
                 >
-                  <SelectTrigger className="col-span-3">
+                  <SelectTrigger className="col-span-3 border-theme-lightBrown/30 focus:ring-theme-deepPurple">
                     <SelectValue placeholder="Select a vehicle (optional)" />
                   </SelectTrigger>
                   <SelectContent>
@@ -525,9 +677,35 @@ const AdminUsers = () => {
                   </SelectContent>
                 </Select>
               </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="developer" className="text-right text-theme-deepPurple">
+                  Developer
+                </Label>
+                <Select 
+                  value={developerId || "none"} 
+                  onValueChange={(value) => setDeveloperId(value === "none" ? null : value)}
+                >
+                  <SelectTrigger className="col-span-3 border-theme-lightBrown/30 focus:ring-theme-deepPurple">
+                    <SelectValue placeholder="Assign to developer (optional)" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">None</SelectItem>
+                    {availableDevelopers.map((developer) => (
+                      <SelectItem key={developer.id} value={developer.id}>
+                        {developer.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
             <DialogFooter>
-              <Button type="submit">{isEditing ? 'Update User' : 'Add User'}</Button>
+              <Button 
+                type="submit"
+                className="bg-theme-deepPurple hover:bg-theme-darkPurple"
+              >
+                {isEditing ? 'Update User' : 'Add User'}
+              </Button>
             </DialogFooter>
           </form>
         </DialogContent>

@@ -17,7 +17,7 @@ import {
   BarChart3
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { toast } from "sonner";
+import { toast } from "@/hooks/use-toast";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Badge } from "@/components/ui/badge";
@@ -93,9 +93,9 @@ const DevLayout = () => {
         <div className="flex flex-col h-full text-gray-200">
           {/* Logo */}
           <div className="flex items-center justify-center h-16 border-b border-theme-deepPurple/40">
-            <h1 className="text-xl font-bold text-white flex items-center">
+            <h1 className="text-xl font-bold text-white flex items-center font-['Orbitron']">
               <Code className="mr-2 h-6 w-6 text-theme-lightBrown" />
-              autotrace <span className="ml-2 text-sm font-medium px-2 py-1 bg-theme-deepPurple/60 text-white rounded">Dev</span>
+              <span className="text-theme-lightBrown">A</span>utotrace <span className="ml-2 text-sm font-medium px-2 py-1 bg-theme-deepPurple/60 text-white rounded">Dev</span>
             </h1>
           </div>
           
@@ -208,7 +208,7 @@ const DevLayout = () => {
         </main>
         
         <footer className="py-4 px-6 border-t text-center text-sm text-gray-500 bg-white">
-          &copy; {new Date().getFullYear()} autotrace. All rights reserved.
+          &copy; {new Date().getFullYear()} <span className="font-['Orbitron']"><span className="text-theme-terracotta">A</span>utotrace</span>. All rights reserved.
         </footer>
       </div>
 

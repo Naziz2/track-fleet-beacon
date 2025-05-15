@@ -1,273 +1,161 @@
 
-import { useEffect } from "react";
+import React from "react";
+import { Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
-import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import { 
-  MapPin, 
-  Shield, 
-  Activity, 
-  Zap, 
-  ChevronRight, 
-  Clock, 
-  BarChart, 
-  Send
-} from "lucide-react";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 
 const Index = () => {
-  const { userRole, isLoading } = useAuth();
-  const navigate = useNavigate();
+  const { user } = useAuth();
 
-  // Auto redirect if user is already authenticated
-  useEffect(() => {
-    if (!isLoading) {
-      if (userRole === 'admin') {
-        navigate('/admin/dashboard');
-      } else if (userRole === 'developer') {
-        navigate('/developer/dashboard');
-      }
-    }
-  }, [userRole, isLoading, navigate]);
-  
   return (
-    <div className="min-h-screen bg-gradient-to-b from-white to-gray-50 flex flex-col">
-      {/* Hero Section */}
-      <header className="bg-gradient-to-r from-fleet-700 to-fleet-800 text-white">
-        <div className="max-w-7xl mx-auto px-4 py-24 sm:px-6 lg:px-8 flex flex-col items-center text-center">
-          <div className="mb-6 flex items-center justify-center space-x-2">
-            <div className="h-10 w-10 bg-white rounded-full flex items-center justify-center">
-              <Activity className="h-6 w-6 text-fleet-700" />
+    <div className="min-h-screen bg-gradient-to-b from-theme-darkPurple to-theme-deepPurple flex flex-col">
+      {/* Header */}
+      <header className="p-4 md:p-6 flex justify-between items-center">
+        <div className="flex items-center">
+          <h1 className="text-3xl md:text-4xl font-bold text-white font-['Orbitron']">
+            <span className="text-theme-lightBrown">A</span>utotrace
+          </h1>
+        </div>
+        <div className="space-x-2">
+          {user ? (
+            <Button 
+              asChild
+              variant="outline" 
+              className="bg-theme-deepPurple/50 text-white border-theme-lightBrown/30 hover:bg-theme-deepPurple hover:text-white"
+            >
+              <Link to={user.user_metadata?.role === 'developer' ? '/developer/dashboard' : '/admin/dashboard'}>
+                Go to Dashboard
+              </Link>
+            </Button>
+          ) : (
+            <div className="space-x-2">
+              <Button 
+                asChild
+                variant="outline" 
+                className="text-white border-theme-lightBrown/30 hover:bg-theme-deepPurple/40 hover:text-white"
+              >
+                <Link to="/register">Sign Up</Link>
+              </Button>
+              <Button 
+                asChild
+                className="bg-theme-terracotta hover:bg-theme-lightBrown text-white"
+              >
+                <Link to="/login">Login</Link>
+              </Button>
             </div>
-            <h1 className="text-4xl md:text-5xl font-bold">autotrace</h1>
-          </div>
-          <p className="text-xl md:text-2xl mb-10 max-w-3xl leading-relaxed opacity-90">
-            Intelligent vehicle tracking and fleet management with real-time analytics
-          </p>
-          <div className="flex flex-col sm:flex-row gap-5">
-            <Button
-              className="bg-white text-fleet-700 hover:bg-gray-100 hover:shadow-md transition-all duration-200"
-              size="lg"
-              onClick={() => navigate('/login')}
-            >
-              Sign In
-              <ChevronRight className="ml-2 h-4 w-4" />
-            </Button>
-            <Button
-              variant="outline"
-              className="border-2 border-white text-white hover:bg-white hover:text-fleet-700 transition-all duration-200"
-              size="lg"
-              onClick={() => navigate('/register')}
-            >
-              Register
-            </Button>
-          </div>
+          )}
         </div>
       </header>
 
-      {/* Features */}
-      <section className="py-20 px-4 bg-white">
-        <div className="max-w-7xl mx-auto">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
-              Powerful Fleet Management Tools
-            </h2>
-            <p className="text-lg text-gray-600 max-w-3xl mx-auto">
-              Streamline operations, reduce costs, and improve safety with our comprehensive vehicle tracking solution
-            </p>
-          </div>
-          
-          <div className="grid md:grid-cols-3 gap-10">
-            <Card className="p-8 flex flex-col items-center text-center hover:shadow-lg transition-all duration-300 border-0 shadow-md">
-              <div className="w-16 h-16 bg-fleet-50 text-fleet-700 rounded-full flex items-center justify-center mb-6">
-                <MapPin className="w-7 h-7" />
-              </div>
-              <h3 className="text-xl font-bold mb-3 text-gray-900">Real-time Tracking</h3>
-              <p className="text-gray-600">
-                Monitor your entire fleet in real-time with accurate GPS tracking, custom geofences, and instant alerts.
-              </p>
-            </Card>
-
-            <Card className="p-8 flex flex-col items-center text-center hover:shadow-lg transition-all duration-300 border-0 shadow-md">
-              <div className="w-16 h-16 bg-fleet-50 text-fleet-700 rounded-full flex items-center justify-center mb-6">
-                <BarChart className="w-7 h-7" />
-              </div>
-              <h3 className="text-xl font-bold mb-3 text-gray-900">Advanced Analytics</h3>
-              <p className="text-gray-600">
-                Gain valuable insights with detailed reports on usage patterns, maintenance needs, and driver behavior.
-              </p>
-            </Card>
-
-            <Card className="p-8 flex flex-col items-center text-center hover:shadow-lg transition-all duration-300 border-0 shadow-md">
-              <div className="w-16 h-16 bg-fleet-50 text-fleet-700 rounded-full flex items-center justify-center mb-6">
-                <Shield className="w-7 h-7" />
-              </div>
-              <h3 className="text-xl font-bold mb-3 text-gray-900">Enhanced Security</h3>
-              <p className="text-gray-600">
-                Protect your assets with automated alerts for unauthorized usage, geofence violations, and more.
-              </p>
-            </Card>
-          </div>
-        </div>
-      </section>
-
-      {/* How It Works */}
-      <section className="py-20 px-4 bg-gray-50">
-        <div className="max-w-7xl mx-auto">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">How It Works</h2>
-            <p className="text-lg text-gray-600 max-w-3xl mx-auto">
-              Get started with autotrace in three simple steps
-            </p>
-          </div>
-          
-          <div className="grid md:grid-cols-3 gap-8">
-            <div className="flex flex-col items-center text-center">
-              <div className="w-16 h-16 rounded-full bg-fleet-600 text-white flex items-center justify-center mb-6 text-xl font-bold">1</div>
-              <h3 className="text-xl font-bold mb-3 text-gray-900">Install Trackers</h3>
-              <p className="text-gray-600">
-                Quickly install our plug-and-play GPS trackers in your vehicles
-              </p>
-            </div>
-            
-            <div className="flex flex-col items-center text-center">
-              <div className="w-16 h-16 rounded-full bg-fleet-600 text-white flex items-center justify-center mb-6 text-xl font-bold">2</div>
-              <h3 className="text-xl font-bold mb-3 text-gray-900">Connect Platform</h3>
-              <p className="text-gray-600">
-                Set up your account and connect your vehicles to our cloud platform
-              </p>
-            </div>
-            
-            <div className="flex flex-col items-center text-center">
-              <div className="w-16 h-16 rounded-full bg-fleet-600 text-white flex items-center justify-center mb-6 text-xl font-bold">3</div>
-              <h3 className="text-xl font-bold mb-3 text-gray-900">Start Tracking</h3>
-              <p className="text-gray-600">
-                Monitor your fleet in real-time through our intuitive dashboard
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Stats */}
-      <section className="py-16 px-4 bg-white">
-        <div className="max-w-7xl mx-auto">
-          <div className="grid md:grid-cols-4 gap-8 text-center">
-            <div>
-              <p className="text-4xl font-bold text-fleet-700 mb-2">10k+</p>
-              <p className="text-gray-600">Vehicles Tracked</p>
-            </div>
-            <div>
-              <p className="text-4xl font-bold text-fleet-700 mb-2">1.2M</p>
-              <p className="text-gray-600">Miles Monitored</p>
-            </div>
-            <div>
-              <p className="text-4xl font-bold text-fleet-700 mb-2">98%</p>
-              <p className="text-gray-600">Uptime Guarantee</p>
-            </div>
-            <div>
-              <p className="text-4xl font-bold text-fleet-700 mb-2">24/7</p>
-              <p className="text-gray-600">Customer Support</p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Call to Action */}
-      <section className="py-20 px-4 bg-gradient-to-r from-fleet-600 to-fleet-700 text-white">
-        <div className="max-w-5xl mx-auto text-center">
-          <h2 className="text-3xl md:text-4xl font-bold mb-6">Ready to transform your fleet management?</h2>
-          <p className="text-xl text-white/90 mb-10 max-w-3xl mx-auto">
-            Join thousands of businesses that trust autotrace for their vehicle tracking needs.
+      {/* Hero */}
+      <section className="flex-1 flex flex-col justify-center items-center text-center p-6 mt-6 md:mt-0 animate-fade-in">
+        <div className="max-w-4xl">
+          <h2 className="text-4xl md:text-6xl font-bold text-white mb-6 leading-tight">
+            Smart Vehicle Tracking & Monitoring Solution
+          </h2>
+          <p className="text-lg md:text-xl text-theme-lightBrown/90 mb-8 max-w-2xl mx-auto">
+            Real-time GPS tracking, vehicle diagnostics, and analytics for fleet management. Build for safety, efficiency and control.
           </p>
-          <div className="flex flex-col sm:flex-row gap-5 justify-center">
-            <Button
-              className="bg-white text-fleet-700 hover:bg-gray-100"
-              size="lg"
-              onClick={() => navigate('/register')}
-            >
-              Start Free Trial
+          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <Button asChild size="lg" className="bg-theme-terracotta hover:bg-theme-lightBrown text-white px-8 py-6 text-lg">
+              <Link to={user ? (user.user_metadata?.role === 'developer' ? '/developer/dashboard' : '/admin/dashboard') : '/register'}>
+                {user ? 'Go to Dashboard' : 'Get Started'}
+              </Link>
             </Button>
-            <Button
-              variant="outline"
-              className="border-2 border-white text-white hover:bg-white hover:text-fleet-700"
-              size="lg"
-              onClick={() => navigate('/login')}
-            >
-              Schedule Demo
+            <Button asChild size="lg" variant="outline" className="border-theme-lightBrown/40 text-white hover:bg-theme-deepPurple/40 px-8 py-6 text-lg">
+              <a href="#features">Learn More</a>
             </Button>
           </div>
+        </div>
+      </section>
+
+      {/* Features */}
+      <section id="features" className="py-16 px-6 md:px-10 bg-theme-darkPurple/80 backdrop-blur-sm">
+        <div className="max-w-6xl mx-auto">
+          <h2 className="text-3xl md:text-4xl font-bold text-center text-white mb-12">
+            Advanced Vehicle Management Features
+          </h2>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {[
+              {
+                title: "Real-Time Tracking",
+                description: "Monitor your fleet with precise GPS tracking and instant location updates.",
+                icon: "📍"
+              },
+              {
+                title: "Vehicle Diagnostics",
+                description: "Get detailed insights into vehicle health and performance metrics.",
+                icon: "🔧"
+              },
+              {
+                title: "Alerts & Notifications",
+                description: "Receive instant alerts for critical events and anomalies.",
+                icon: "🔔"
+              },
+              {
+                title: "Route Optimization",
+                description: "Optimize routes for efficiency and reduced fuel consumption.",
+                icon: "🛣️"
+              },
+              {
+                title: "Custom Analytics",
+                description: "Generate detailed reports on fleet performance and driver behavior.",
+                icon: "📊"
+              },
+              {
+                title: "Secure Access Control",
+                description: "Control who can access vehicle data with role-based permissions.",
+                icon: "🔐"
+              }
+            ].map((feature, i) => (
+              <Card key={i} className="backdrop-blur-sm bg-white/5 border-theme-deepPurple/30 shadow-xl transition-all duration-300 hover:shadow-theme-deepPurple/10 hover:-translate-y-1">
+                <CardHeader>
+                  <div className="text-3xl mb-2">{feature.icon}</div>
+                  <CardTitle className="text-xl text-white">{feature.title}</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-theme-lightBrown/80">{feature.description}</p>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* CTA */}
+      <section className="py-16 px-6 bg-theme-deepPurple text-center">
+        <div className="max-w-3xl mx-auto">
+          <h2 className="text-3xl md:text-4xl font-bold text-white mb-6">
+            Ready to transform your fleet management?
+          </h2>
+          <p className="text-lg text-theme-lightBrown/90 mb-8">
+            Join thousands of businesses already using Autotrace to optimize their operations.
+          </p>
+          <Button asChild size="lg" className="bg-theme-terracotta hover:bg-theme-lightBrown text-white px-8 py-6 text-lg">
+            <Link to={user ? (user.user_metadata?.role === 'developer' ? '/developer/dashboard' : '/admin/dashboard') : '/register'}>
+              {user ? 'Go to Dashboard' : 'Get Started Today'}
+            </Link>
+          </Button>
         </div>
       </section>
 
       {/* Footer */}
-      <footer className="bg-gray-900 text-white mt-auto">
-        <div className="max-w-7xl mx-auto px-4 py-16">
-          <div className="grid md:grid-cols-4 gap-8">
-            <div>
-              <div className="flex items-center space-x-2 mb-4">
-                <Activity className="h-6 w-6 text-fleet-400" />
-                <h3 className="text-xl font-bold">autotrace</h3>
-              </div>
-              <p className="text-gray-400">
-                The ultimate solution for vehicle tracking and fleet management.
-              </p>
-            </div>
-            
-            <div>
-              <h4 className="text-lg font-semibold mb-4">Quick Links</h4>
-              <ul className="space-y-2">
-                <li>
-                  <a href="#" className="text-gray-400 hover:text-white transition-colors">Features</a>
-                </li>
-                <li>
-                  <a href="#" className="text-gray-400 hover:text-white transition-colors">Pricing</a>
-                </li>
-                <li>
-                  <a href="#" className="text-gray-400 hover:text-white transition-colors">About Us</a>
-                </li>
-                <li>
-                  <a href="#" className="text-gray-400 hover:text-white transition-colors">Contact</a>
-                </li>
-              </ul>
-            </div>
-            
-            <div>
-              <h4 className="text-lg font-semibold mb-4">Legal</h4>
-              <ul className="space-y-2">
-                <li>
-                  <a href="#" className="text-gray-400 hover:text-white transition-colors">Privacy Policy</a>
-                </li>
-                <li>
-                  <a href="#" className="text-gray-400 hover:text-white transition-colors">Terms of Service</a>
-                </li>
-                <li>
-                  <a href="#" className="text-gray-400 hover:text-white transition-colors">Cookie Policy</a>
-                </li>
-              </ul>
-            </div>
-            
-            <div>
-              <h4 className="text-lg font-semibold mb-4">Contact Us</h4>
-              <address className="not-italic text-gray-400">
-                <p className="flex items-center mb-2">
-                  <MapPin className="h-4 w-4 mr-2" />
-                  123 Fleet Street, San Francisco, CA
-                </p>
-                <p className="flex items-center mb-2">
-                  <Send className="h-4 w-4 mr-2" />
-                  info@autotrace.com
-                </p>
-                <p className="flex items-center">
-                  <Clock className="h-4 w-4 mr-2" />
-                  Mon-Fri: 9AM - 5PM PST
-                </p>
-              </address>
-            </div>
+      <footer className="bg-theme-darkPurple text-white py-8 px-6">
+        <div className="max-w-6xl mx-auto flex flex-col md:flex-row justify-between items-center">
+          <div className="mb-4 md:mb-0">
+            <h2 className="text-2xl font-bold font-['Orbitron']">
+              <span className="text-theme-lightBrown">A</span>utotrace
+            </h2>
           </div>
-          
-          <div className="mt-12 pt-8 border-t border-gray-800 text-center text-gray-400">
-            <p>&copy; {new Date().getFullYear()} autotrace. All rights reserved.</p>
+          <div className="flex flex-col md:flex-row gap-4 md:gap-8 text-theme-lightBrown/70">
+            <a href="#" className="hover:text-theme-lightBrown transition-colors">Privacy Policy</a>
+            <a href="#" className="hover:text-theme-lightBrown transition-colors">Terms of Service</a>
+            <a href="#" className="hover:text-theme-lightBrown transition-colors">Contact Us</a>
+          </div>
+          <div className="mt-4 md:mt-0 text-sm text-theme-lightBrown/50">
+            &copy; {new Date().getFullYear()} Autotrace. All rights reserved.
           </div>
         </div>
       </footer>

@@ -16,7 +16,7 @@ import {
   BellRing
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { toast } from "sonner";
+import { toast } from "@/hooks/use-toast";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
@@ -95,9 +95,9 @@ const AdminLayout = () => {
         <div className="flex flex-col h-full">
           {/* Logo */}
           <div className="flex items-center justify-center h-16 border-b border-theme-deepPurple/40">
-            <h1 className="text-xl font-bold text-white flex items-center">
+            <h1 className="text-xl font-bold text-white flex items-center font-['Orbitron']">
               <BarChart3 className="mr-2 h-6 w-6 text-theme-lightBrown" />
-              autotrace <span className="ml-2 text-sm font-medium px-2 py-1 bg-theme-deepPurple text-white rounded">Admin</span>
+              <span className="text-theme-lightBrown">A</span>utotrace <span className="ml-2 text-sm font-medium px-2 py-1 bg-theme-deepPurple text-white rounded">Admin</span>
             </h1>
           </div>
           
@@ -205,7 +205,7 @@ const AdminLayout = () => {
         </main>
         
         <footer className="py-4 px-6 border-t text-center text-sm text-gray-500 bg-white">
-          &copy; {new Date().getFullYear()} autotrace. All rights reserved.
+          &copy; {new Date().getFullYear()} <span className="font-['Orbitron']"><span className="text-theme-terracotta">A</span>utotrace</span>. All rights reserved.
         </footer>
       </div>
 

@@ -1,217 +1,232 @@
 
-import { useState, useEffect } from "react";
-import { useAuth } from "@/contexts/AuthContext";
-import { supabase } from "@/lib/supabase";
-import { Alert, Vehicle, mapAlert, mapVehicle } from "@/types";
-import { toast } from "sonner";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
-import { Search, AlertTriangle, Bell, Car } from "lucide-react";
+import { useState, useEffect } from 'react';
+import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/lib/supabase';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { toast } from '@/hooks/use-toast';
+import { Bell, AlertTriangle, Info, Check, Search, AlertCircle, Clock } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter
+} from '@/components/ui/dialog';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+
+interface AlertItem {
+  id: string;
+  vehicle_id: string;
+  description: string;
+  type: string;
+  timestamp: string;
+  read?: boolean;
+  vehicleInfo?: {
+    plate_number: string;
+  };
+}
 
 const DeveloperAlerts = () => {
   const { user } = useAuth();
-  const [alerts, setAlerts] = useState<Alert[]>([]);
-  const [filteredAlerts, setFilteredAlerts] = useState<Alert[]>([]);
-  const [searchTerm, setSearchTerm] = useState("");
+  const [alerts, setAlerts] = useState<AlertItem[]>([]);
+  const [filteredAlerts, setFilteredAlerts] = useState<AlertItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [vehiclesMap, setVehiclesMap] = useState<{ [key: string]: Vehicle }>({});
-  const [filterType, setFilterType] = useState<string>("all");
-  
-  // Fetch alerts (from vehicles_positions)
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterType, setFilterType] = useState('all');
+  const [selectedAlert, setSelectedAlert] = useState<AlertItem | null>(null);
+  const [isDetailOpen, setIsDetailOpen] = useState(false);
+  const [readAlerts, setReadAlerts] = useState<Set<string>>(new Set());
+
   useEffect(() => {
-    const fetchAlerts = async () => {
-      if (!user) return;
-      setLoading(true);
-      try {
-        // Get developer's assigned vehicles
-        const { data: developerData, error: developerError } = await supabase
-          .from('developers')
-          .select('*')
-          .eq('id', user.id)
-          .single();
-        if (developerError) throw developerError;
-        if (developerData && developerData.assigned_vehicle_ids?.length > 0) {
-          const { assigned_vehicle_ids } = developerData;
-          // Fetch vehicles
-          const { data: vehicleData, error: vehicleError } = await supabase
-            .from('vehicles')
-            .select('*')
-            .in('id', assigned_vehicle_ids);
-          if (vehicleError) throw vehicleError;
-          const mappedVehicles = (vehicleData || []).map(mapVehicle);
-          const vehiclesMapObj: { [key: string]: Vehicle } = {};
-          mappedVehicles.forEach(vehicle => {
-            vehiclesMapObj[vehicle.id] = vehicle;
-          });
-          setVehiclesMap(vehiclesMapObj);
-          // Fetch devices for these vehicles
-          const { data: devicesData, error: devicesError } = await supabase
-            .from('devices')
-            .select('id,vehicle_id')
-            .in('vehicle_id', assigned_vehicle_ids);
-          if (devicesError) throw devicesError;
-          const deviceIdToVehicleId: { [deviceId: string]: string } = {};
-          (devicesData || []).forEach(device => {
-            deviceIdToVehicleId[device.id] = device.vehicle_id;
-          });
-          const deviceIds = Object.keys(deviceIdToVehicleId);
-          // Fetch recent positions for these devices
-          const { data: positionsData, error: positionsError } = await supabase
-            .from('vehicle_positions')
-            .select('*')
-            .in('device_id', deviceIds)
-            .order('created_at', { ascending: false })
-            .limit(500);
-          if (positionsError) throw positionsError;
-          // Classify alerts using the provided logic
-          const computedAlerts = [];
-          for (let i = 0; i < (positionsData?.length || 0); i++) {
-            const pos = positionsData[i];
-            const prev = positionsData[i + 1];
-            let alertType = 'normal';
-            if (pos.pitch < -5) {
-              alertType = 'uphill';
-            } else if (pos.pitch > 5) {
-              alertType = 'downhill';
-            } else if (pos.roll > 5 || pos.roll < -5) {
-              alertType = pos.roll > 0 ? 'tiltedRight' : 'tiltedLeft';
-            } else if (prev && Math.abs(pos.accel_z - prev.accel_z) > 0.5) {
-              alertType = 'bump';
-            }
-            // Map device_id to vehicle_id using the mapping
-            const vehicleId = deviceIdToVehicleId[pos.device_id];
-            if (alertType !== 'normal' && vehicleId && vehiclesMapObj[vehicleId]) {
-              computedAlerts.push({
-                id: pos.id,
-                vehicle_id: vehicleId,
-                type: alertType,
-                description: `Pitch: ${pos.pitch}, Roll: ${pos.roll}, AccelZ: ${pos.accel_z}`,
-                timestamp: pos.created_at,
-              });
-            }
-          }
-          // Only keep the latest alert for each vehicle_id
-          const latestAlertsMap: { [vehicle_id: string]: typeof computedAlerts[0] } = {};
-          for (const alert of computedAlerts) {
-            const existing = latestAlertsMap[alert.vehicle_id];
-            if (!existing || new Date(alert.timestamp) > new Date(existing.timestamp)) {
-              latestAlertsMap[alert.vehicle_id] = alert;
-            }
-          }
-          const latestAlerts = Object.values(latestAlertsMap);
-          setAlerts(latestAlerts);
-          setFilteredAlerts(latestAlerts);
-        } else {
-          setAlerts([]);
-          setFilteredAlerts([]);
-        }
-      } catch (error) {
-        console.error("Error fetching alerts:", error);
-        toast.error("Failed to load alerts");
-      } finally {
-        setLoading(false);
-      }
-    };
     fetchAlerts();
-    
-    // Set up subscription for real-time updates
+
+    // Set up the real-time subscription
     const alertsSubscription = supabase
       .channel('alerts_channel')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'alerts' }, (payload) => {
-        const newAlert = payload.new as Alert;
-        
-        // Check if this alert belongs to one of our vehicles
-        if (vehiclesMap[newAlert.vehicle_id]) {
-          setAlerts(prevAlerts => [newAlert, ...prevAlerts]);
-          
-          // Apply filters if needed
-          if (filterType === 'all' || filterType === newAlert.type) {
-            setFilteredAlerts(prevAlerts => [newAlert, ...prevAlerts]);
-          }
-          
-          // Show notification
-          const vehiclePlate = vehiclesMap[newAlert.vehicle_id]?.plate_number || 'Unknown Vehicle';
-          toast.error(`New Alert: ${newAlert.type}`, {
-            description: `${vehiclePlate}: ${newAlert.description}`,
-          });
-        }
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'alerts'
+      }, (payload) => {
+        // Add the new alert to the list
+        const newAlert = payload.new as AlertItem;
+        handleNewAlert(newAlert);
       })
       .subscribe();
-      
-    // Cleanup subscription
+
     return () => {
-      alertsSubscription.unsubscribe();
+      supabase.removeChannel(alertsSubscription);
     };
   }, [user]);
-  
-  // Handle search and filtering
+
   useEffect(() => {
+    // Apply filters whenever searchTerm or filterType changes
+    applyFilters();
+  }, [searchTerm, filterType, alerts]);
+
+  const fetchAlerts = async () => {
+    if (!user) return;
+
+    setLoading(true);
+
+    try {
+      // First get the developer record to get assigned vehicle IDs
+      const { data: developerData, error: developerError } = await supabase
+        .from('developers')
+        .select('assigned_vehicle_ids')
+        .eq('id', user.id)
+        .single();
+      
+      if (developerError) throw developerError;
+      
+      if (!developerData?.assigned_vehicle_ids?.length) {
+        setAlerts([]);
+        setFilteredAlerts([]);
+        setLoading(false);
+        return;
+      }
+      
+      // Fetch alerts for the assigned vehicles
+      const { data: alertsData, error: alertsError } = await supabase
+        .from('alerts')
+        .select('*')
+        .in('vehicle_id', developerData.assigned_vehicle_ids)
+        .order('timestamp', { ascending: false });
+      
+      if (alertsError) throw alertsError;
+
+      // Fetch vehicle info for each alert
+      const enrichedAlerts = await Promise.all((alertsData || []).map(async (alert) => {
+        const { data: vehicleData } = await supabase
+          .from('vehicles')
+          .select('plate_number')
+          .eq('id', alert.vehicle_id)
+          .single();
+        
+        return {
+          ...alert,
+          vehicleInfo: vehicleData || { plate_number: 'Unknown' }
+        };
+      }));
+      
+      setAlerts(enrichedAlerts);
+      setFilteredAlerts(enrichedAlerts);
+    } catch (error) {
+      console.error('Error fetching alerts:', error);
+      toast.error('Failed to load alerts');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleNewAlert = async (newAlert: AlertItem) => {
+    try {
+      // Fetch vehicle info for the new alert
+      const { data: vehicleData } = await supabase
+        .from('vehicles')
+        .select('plate_number')
+        .eq('id', newAlert.vehicle_id)
+        .single();
+
+      const enrichedAlert = {
+        ...newAlert,
+        vehicleInfo: vehicleData || { plate_number: 'Unknown' }
+      };
+
+      // Add new alert to the list
+      setAlerts(prev => [enrichedAlert, ...prev]);
+      
+      // Show a toast notification
+      toast.warning(`New alert: ${enrichedAlert.type}`, {
+        description: `${enrichedAlert.description} for vehicle ${enrichedAlert.vehicleInfo.plate_number}`
+      });
+    } catch (error) {
+      console.error('Error processing new alert:', error);
+    }
+  };
+
+  const applyFilters = () => {
     let filtered = alerts;
     
-    // Filter by type if not "all"
-    if (filterType !== "all") {
+    // Apply type filter
+    if (filterType !== 'all') {
       filtered = filtered.filter(alert => alert.type === filterType);
     }
     
-    // Then apply search term if any
-    if (searchTerm.trim() !== "") {
-      const lowerCaseSearch = searchTerm.toLowerCase();
-      filtered = filtered.filter((alert) => {
-        const vehiclePlate = vehiclesMap[alert.vehicle_id]?.plate_number?.toLowerCase() || '';
-        return (
-          alert.description.toLowerCase().includes(lowerCaseSearch) ||
-          alert.type.toLowerCase().includes(lowerCaseSearch) ||
-          vehiclePlate.includes(lowerCaseSearch)
-        );
-      });
+    // Apply search filter
+    if (searchTerm.trim()) {
+      const searchLower = searchTerm.toLowerCase();
+      filtered = filtered.filter(
+        alert => 
+          alert.description.toLowerCase().includes(searchLower) ||
+          alert.type.toLowerCase().includes(searchLower) ||
+          alert.vehicleInfo?.plate_number.toLowerCase().includes(searchLower)
+      );
     }
     
     setFilteredAlerts(filtered);
-  }, [searchTerm, filterType, alerts, vehiclesMap]);
-  
-  // Format date
+  };
+
+  const handleAlertClick = (alert: AlertItem) => {
+    setSelectedAlert(alert);
+    setIsDetailOpen(true);
+    
+    // Mark as read
+    setReadAlerts(prev => {
+      const updated = new Set(prev);
+      updated.add(alert.id);
+      return updated;
+    });
+  };
+
+  const getAlertTypeIcon = (type: string) => {
+    switch (type.toLowerCase()) {
+      case 'critical':
+        return <AlertTriangle className="h-5 w-5 text-red-500" />;
+      case 'warning':
+        return <AlertCircle className="h-5 w-5 text-yellow-500" />;
+      case 'info':
+        return <Info className="h-5 w-5 text-blue-500" />;
+      default:
+        return <Bell className="h-5 w-5 text-gray-500" />;
+    }
+  };
+
+  const getAlertTypeBadge = (type: string) => {
+    switch (type.toLowerCase()) {
+      case 'critical':
+        return <Badge className="bg-red-500">{type}</Badge>;
+      case 'warning':
+        return <Badge className="bg-yellow-500 text-black">{type}</Badge>;
+      case 'info':
+        return <Badge className="bg-blue-500">{type}</Badge>;
+      default:
+        return <Badge variant="outline">{type}</Badge>;
+    }
+  };
+
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
-    return date.toLocaleString();
+    return date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
   };
-  
-  // Get alert type badge color
-  const getAlertBadgeColor = (type: string) => {
-    switch (type) {
-      case 'speeding':
-        return 'bg-red-500';
-      case 'geofence':
-        return 'bg-amber-500';
-      case 'maintenance':
-        return 'bg-blue-500';
-      default:
-        return 'bg-gray-500';
-    }
+
+  const markAllAsRead = () => {
+    const allIds = alerts.map(alert => alert.id);
+    setReadAlerts(new Set(allIds));
+    toast.success('All alerts marked as read');
   };
 
   if (loading) {
     return (
       <div className="flex h-full items-center justify-center p-8">
         <div className="text-center">
-          <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full mx-auto mb-4"></div>
-          <p>Loading alerts...</p>
+          <div className="animate-spin h-8 w-8 border-4 border-theme-deepPurple border-t-transparent rounded-full mx-auto mb-4"></div>
+          <p className="text-theme-deepPurple">Loading alerts...</p>
         </div>
       </div>
     );
@@ -219,107 +234,174 @@ const DeveloperAlerts = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <h1 className="text-2xl font-bold tracking-tight">Vehicle Alerts</h1>
-        <div className="flex flex-col sm:flex-row items-center gap-4 w-full md:w-auto">
-          <div className="relative w-full sm:w-auto">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight text-theme-darkPurple">Alerts</h1>
+          <p className="text-theme-terracotta">Monitor vehicle alerts and notifications</p>
+        </div>
+        <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+          <div className="relative flex-grow sm:flex-grow-0">
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-theme-terracotta" />
             <Input
               type="search"
               placeholder="Search alerts..."
-              className="w-full sm:w-[250px] pl-9"
+              className="w-full sm:w-[200px] pl-9 border-theme-lightBrown/30 focus:border-theme-deepPurple"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
           <Select value={filterType} onValueChange={setFilterType}>
-            <SelectTrigger className="w-full sm:w-[180px]">
-              <SelectValue placeholder="Filter by type" />
+            <SelectTrigger className="w-[120px] border-theme-lightBrown/30 focus:border-theme-deepPurple">
+              <SelectValue placeholder="Filter by" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Types</SelectItem>
-              <SelectItem value="speeding">Speeding</SelectItem>
-              <SelectItem value="geofence">Geofence</SelectItem>
-              <SelectItem value="maintenance">Maintenance</SelectItem>
+              <SelectItem value="critical">Critical</SelectItem>
+              <SelectItem value="warning">Warning</SelectItem>
+              <SelectItem value="info">Info</SelectItem>
             </SelectContent>
           </Select>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={markAllAsRead}
+            className="border-theme-terracotta/20 text-theme-terracotta hover:bg-theme-terracotta/10"
+          >
+            <Check className="h-4 w-4 mr-2" />
+            Mark All Read
+          </Button>
         </div>
       </div>
 
-      {alerts.length === 0 ? (
-        <Card>
-          <CardContent className="pt-6 text-center">
-            <div className="py-12 flex flex-col items-center">
-              <Bell className="h-12 w-12 text-gray-300 mb-4" />
-              <h3 className="text-lg font-medium mb-2">No Alerts Found</h3>
-              <p className="text-muted-foreground max-w-md">
-                There are no alerts for your assigned vehicles. We'll notify you when new alerts come in.
-              </p>
+      {filteredAlerts.length === 0 ? (
+        <Card className="border-theme-lightBrown/20 shadow-md">
+          <CardContent className="pt-10 pb-10 text-center">
+            <div className="flex justify-center mb-4">
+              <div className="bg-theme-lightBrown/10 p-4 rounded-full">
+                <Bell className="h-10 w-10 text-theme-terracotta/50" />
+              </div>
             </div>
-          </CardContent>
-        </Card>
-      ) : filteredAlerts.length === 0 ? (
-        <Card>
-          <CardContent className="pt-6 text-center">
-            <div className="py-8">
-              <p className="text-muted-foreground">No alerts match your current filters.</p>
-              <Button 
-                variant="link" 
-                onClick={() => {
-                  setSearchTerm("");
-                  setFilterType("all");
-                }}
-              >
-                Clear filters
-              </Button>
-            </div>
+            <h3 className="text-lg font-medium mb-1 text-theme-darkPurple">No alerts found</h3>
+            <p className="text-theme-terracotta/70">
+              {searchTerm || filterType !== 'all' 
+                ? "Try adjusting your search or filters" 
+                : "You don't have any alerts right now"}
+            </p>
           </CardContent>
         </Card>
       ) : (
-        <Card>
-          <CardHeader>
-            <CardTitle>Alert History</CardTitle>
+        <Card className="border-theme-lightBrown/20 shadow-md overflow-hidden">
+          <CardHeader className="bg-theme-darkPurple/5 border-b border-theme-lightBrown/20">
+            <CardTitle className="text-theme-darkPurple">System Alerts</CardTitle>
             <CardDescription>
-              Showing {filteredAlerts.length} of {alerts.length} alerts
+              {filteredAlerts.length} alert{filteredAlerts.length !== 1 ? 's' : ''} found
             </CardDescription>
           </CardHeader>
-          <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Type</TableHead>
-                  <TableHead>Vehicle</TableHead>
-                  <TableHead>Description</TableHead>
-                  <TableHead>Time</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredAlerts.map((alert) => {
-                  const vehicle = vehiclesMap[alert.vehicle_id];
-                  return (
-                    <TableRow key={alert.id}>
-                      <TableCell>
-                        <Badge className={getAlertBadgeColor(alert.type)}>
-                          <AlertTriangle className="h-3 w-3 mr-1" />
-                          {alert.type.charAt(0).toUpperCase() + alert.type.slice(1)}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center">
-                          <Car className="h-4 w-4 mr-2 text-gray-500" />
-                          <span>{vehicle ? vehicle.plate_number : "Unknown Vehicle"}</span>
-                        </div>
-                      </TableCell>
-                      <TableCell>{alert.description}</TableCell>
-                      <TableCell>{formatDate(alert.timestamp)}</TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
+          <CardContent className="p-0">
+            <div className="divide-y divide-theme-lightBrown/20">
+              {filteredAlerts.map(alert => (
+                <div 
+                  key={alert.id} 
+                  className={cn(
+                    "p-4 hover:bg-theme-lightBrown/5 cursor-pointer flex items-center transition-colors",
+                    readAlerts.has(alert.id) ? "bg-white" : "bg-theme-lightBrown/10"
+                  )}
+                  onClick={() => handleAlertClick(alert)}
+                >
+                  <div className="mr-4">
+                    {getAlertTypeIcon(alert.type)}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between mb-1">
+                      <h4 className="font-medium text-theme-darkPurple truncate">
+                        {alert.vehicleInfo?.plate_number} - {alert.description.slice(0, 50)}
+                        {alert.description.length > 50 ? '...' : ''}
+                      </h4>
+                      {!readAlerts.has(alert.id) && (
+                        <span className="h-2 w-2 bg-theme-terracotta rounded-full ml-2"></span>
+                      )}
+                    </div>
+                    <div className="flex items-center text-sm text-theme-terracotta/70 gap-2">
+                      <Clock className="h-3 w-3" />
+                      <span>{formatDate(alert.timestamp)}</span>
+                      <div className="ml-auto">
+                        {getAlertTypeBadge(alert.type)}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
           </CardContent>
         </Card>
       )}
+
+      {/* Alert Detail Dialog */}
+      <Dialog open={isDetailOpen} onOpenChange={setIsDetailOpen}>
+        <DialogContent className="sm:max-w-md bg-white border-theme-lightBrown/30">
+          <DialogHeader>
+            <DialogTitle className="flex items-center text-theme-darkPurple">
+              {selectedAlert && getAlertTypeIcon(selectedAlert.type)}
+              <span className="ml-2">Alert Details</span>
+            </DialogTitle>
+            <DialogDescription className="text-theme-terracotta/70">
+              Complete information about the selected alert
+            </DialogDescription>
+          </DialogHeader>
+          
+          {selectedAlert && (
+            <div className="space-y-4">
+              <Alert className={cn(
+                "border",
+                selectedAlert.type.toLowerCase() === 'critical' ? "border-red-200 bg-red-50" : 
+                selectedAlert.type.toLowerCase() === 'warning' ? "border-yellow-200 bg-yellow-50" : 
+                "border-blue-200 bg-blue-50"
+              )}>
+                <AlertTitle className={cn(
+                  selectedAlert.type.toLowerCase() === 'critical' ? "text-red-800" : 
+                  selectedAlert.type.toLowerCase() === 'warning' ? "text-yellow-800" : 
+                  "text-blue-800"
+                )}>
+                  {selectedAlert.type} Alert
+                </AlertTitle>
+                <AlertDescription className={cn(
+                  selectedAlert.type.toLowerCase() === 'critical' ? "text-red-700" : 
+                  selectedAlert.type.toLowerCase() === 'warning' ? "text-yellow-700" : 
+                  "text-blue-700"
+                )}>
+                  {selectedAlert.description}
+                </AlertDescription>
+              </Alert>
+              
+              <div className="grid grid-cols-2 gap-3">
+                <div className="text-sm font-medium text-theme-deepPurple">Vehicle Plate</div>
+                <div className="text-theme-darkPurple">{selectedAlert.vehicleInfo?.plate_number}</div>
+                
+                <div className="text-sm font-medium text-theme-deepPurple">Vehicle ID</div>
+                <div className="text-theme-darkPurple">{selectedAlert.vehicle_id}</div>
+                
+                <div className="text-sm font-medium text-theme-deepPurple">Date & Time</div>
+                <div className="text-theme-darkPurple">{formatDate(selectedAlert.timestamp)}</div>
+                
+                <div className="text-sm font-medium text-theme-deepPurple">Alert Type</div>
+                <div>{getAlertTypeBadge(selectedAlert.type)}</div>
+                
+                <div className="text-sm font-medium text-theme-deepPurple">Alert ID</div>
+                <div className="text-theme-darkPurple text-xs font-mono">{selectedAlert.id}</div>
+              </div>
+              
+              <DialogFooter>
+                <Button 
+                  onClick={() => setIsDetailOpen(false)}
+                  className="bg-theme-deepPurple hover:bg-theme-darkPurple"
+                >
+                  Close
+                </Button>
+              </DialogFooter>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
