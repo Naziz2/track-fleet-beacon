@@ -164,7 +164,7 @@ const DevLayout = () => {
             </div>
             <Button 
               variant="outline" 
-              className="w-full justify-start text-gray-200 hover:text-white hover:bg-theme-deepPurple/50 border border-theme-deepPurple/40"
+              className="w-full justify-start bg-theme-deepPurple/90 text-white hover:text-theme-deepPurple hover:bg-white border border-theme-deepPurple/40"
               onClick={handleSignOut}
             >
               <LogOut className="w-4 h-4 mr-2" />

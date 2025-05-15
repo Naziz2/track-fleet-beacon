@@ -348,7 +348,7 @@ setAlerts(latestAlerts);
         style={{ minWidth: 80, justifyContent: 'center', letterSpacing: '0.02em' }}
       >
         {icon}
-        <span className="capitalize">{alert.type.replace(/([A-Z])/g, ' $1')}</span>
+        <span className="capitalize">{typeof alert.type === "string" ? alert.type.replace(/([A-Z])/g, ' $1') : "Unknown"}</span>
       </span>
     );
   })()}
