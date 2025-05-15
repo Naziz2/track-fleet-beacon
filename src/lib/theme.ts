@@ -25,6 +25,12 @@ export const themeColors = {
     800: '#075985',
     900: '#0c4a6e',
     950: '#082f49',
+  },
+  theme: {
+    darkPurple: '#210F37',
+    deepPurple: '#4F1C51',
+    terracotta: '#A55B4D',
+    lightBrown: '#DCA06D',
   }
 };
 

@@ -88,16 +88,16 @@ const AdminLayout = () => {
       {/* Sidebar */}
       <aside 
         className={cn(
-          "fixed top-0 left-0 z-40 h-full w-64 bg-white border-r shadow-sm transform transition-transform duration-300 ease-in-out lg:translate-x-0",
+          "fixed top-0 left-0 z-40 h-full w-64 bg-theme-darkPurple text-white border-r border-theme-deepPurple/30 shadow-sm transform transition-transform duration-300 ease-in-out lg:translate-x-0",
           sidebarOpen ? "translate-x-0" : "-translate-x-full"
         )}
       >
         <div className="flex flex-col h-full">
           {/* Logo */}
-          <div className="flex items-center justify-center h-16 border-b">
-            <h1 className="text-xl font-bold text-fleet-700 flex items-center">
-              <BarChart3 className="mr-2 h-6 w-6" />
-              autotrace <span className="ml-2 text-sm font-medium px-2 py-1 bg-fleet-100 text-fleet-700 rounded">Admin</span>
+          <div className="flex items-center justify-center h-16 border-b border-theme-deepPurple/40">
+            <h1 className="text-xl font-bold text-white flex items-center">
+              <BarChart3 className="mr-2 h-6 w-6 text-theme-lightBrown" />
+              autotrace <span className="ml-2 text-sm font-medium px-2 py-1 bg-theme-deepPurple text-white rounded">Admin</span>
             </h1>
           </div>
           
@@ -110,8 +110,8 @@ const AdminLayout = () => {
                 className={({ isActive }) => cn(
                   "flex items-center px-4 py-3 rounded-lg transition-colors duration-200",
                   isActive 
-                    ? "bg-fleet-50 text-fleet-700 font-medium" 
-                    : "text-gray-600 hover:bg-gray-100"
+                    ? "bg-theme-deepPurple text-white font-medium" 
+                    : "text-gray-300 hover:bg-theme-deepPurple/50 hover:text-white"
                 )}
                 onClick={() => {
                   if (window.innerWidth < 1024) {
@@ -126,28 +126,28 @@ const AdminLayout = () => {
           </nav>
           
           {/* User & Logout */}
-          <div className="p-4 border-t">
-            <div className="flex items-center mb-4 bg-gray-50 p-3 rounded-lg">
-              <Avatar className="h-10 w-10 border-2 border-white shadow-sm">
-                <AvatarFallback className="bg-fleet-600 text-white">
+          <div className="p-4 border-t border-theme-deepPurple/40">
+            <div className="flex items-center mb-4 bg-theme-deepPurple/30 p-3 rounded-lg">
+              <Avatar className="h-10 w-10 border-2 border-theme-deepPurple shadow-sm">
+                <AvatarFallback className="bg-theme-terracotta text-white">
                   {user?.email?.charAt(0).toUpperCase() || "A"}
                 </AvatarFallback>
               </Avatar>
               <div className="ml-3 overflow-hidden">
-                <p className="text-sm font-medium text-gray-700 truncate">
+                <p className="text-sm font-medium text-gray-100 truncate">
                   {user?.email || "admin@autotrace.com"}
                 </p>
-                <p className="text-xs text-gray-500">Administrator</p>
+                <p className="text-xs text-gray-400">Administrator</p>
               </div>
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <div className="ml-auto relative">
-                      <Button variant="ghost" size="icon" className="text-gray-500 hover:text-fleet-700 h-8 w-8">
+                      <Button variant="ghost" size="icon" className="text-gray-300 hover:text-white h-8 w-8">
                         <BellRing className="h-5 w-5" />
                       </Button>
                       {notifications > 0 && (
-                        <span className="absolute top-0 right-0 h-4 w-4 bg-red-500 rounded-full text-white text-xs flex items-center justify-center">
+                        <span className="absolute top-0 right-0 h-4 w-4 bg-theme-terracotta rounded-full text-white text-xs flex items-center justify-center">
                           {notifications}
                         </span>
                       )}
@@ -161,7 +161,7 @@ const AdminLayout = () => {
             </div>
             <Button 
               variant="outline" 
-              className="w-full justify-start text-red-600 hover:text-red-700 hover:bg-red-50 border border-red-200"
+              className="w-full justify-start text-gray-200 hover:text-white hover:bg-theme-deepPurple/50 border border-theme-deepPurple/40"
               onClick={handleSignOut}
             >
               <LogOut className="w-4 h-4 mr-2" />
@@ -178,7 +178,7 @@ const AdminLayout = () => {
       )}>
         {/* Header */}
         <header className="bg-white border-b px-4 py-3 flex items-center justify-between sticky top-0 z-10 shadow-sm">
-          <h2 className="text-lg font-medium text-gray-800">
+          <h2 className="text-lg font-medium text-theme-darkPurple">
             {navItems.find(item => item.href === location.pathname)?.title || "Dashboard"}
           </h2>
           <div className="flex items-center space-x-2">
@@ -188,7 +188,7 @@ const AdminLayout = () => {
                   <Button variant="ghost" size="icon" className="text-gray-500">
                     <BellRing className="h-5 w-5" />
                     {notifications > 0 && (
-                      <span className="absolute top-1 right-1 h-3 w-3 bg-red-500 rounded-full"></span>
+                      <span className="absolute top-1 right-1 h-3 w-3 bg-theme-terracotta rounded-full"></span>
                     )}
                   </Button>
                 </TooltipTrigger>

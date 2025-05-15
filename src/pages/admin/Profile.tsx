@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabase";
@@ -8,6 +9,16 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
+import { 
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Lock, User, Building, Phone, Mail, MapPin } from "lucide-react";
 
 const AdminProfile = () => {
   const { user } = useAuth();
@@ -24,6 +35,13 @@ const AdminProfile = () => {
   const [companyName, setCompanyName] = useState("");
   const [address, setAddress] = useState("");
   const [email, setEmail] = useState("");
+  
+  // Password change state
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [passwordLoading, setPasswordLoading] = useState(false);
+  const [isPasswordDialogOpen, setIsPasswordDialogOpen] = useState(false);
   
   useEffect(() => {
     const fetchProfile = async () => {
@@ -110,6 +128,42 @@ const AdminProfile = () => {
     }
   };
   
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!user) {
+      toast.error("You must be logged in to change your password");
+      return;
+    }
+    
+    if (newPassword !== confirmPassword) {
+      toast.error("New passwords do not match");
+      return;
+    }
+    
+    setPasswordLoading(true);
+    try {
+      const { error } = await supabase.auth.updateUser({
+        password: newPassword
+      });
+      
+      if (error) throw error;
+      
+      toast.success("Password updated successfully");
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+      setIsPasswordDialogOpen(false);
+    } catch (error: any) {
+      console.error("Error updating password:", error);
+      toast.error("Failed to update password", {
+        description: error.message
+      });
+    } finally {
+      setPasswordLoading(false);
+    }
+  };
+  
   const toggleEdit = () => {
     setIsEditing(!isEditing);
   };
@@ -118,66 +172,81 @@ const AdminProfile = () => {
     return (
       <div className="flex h-full items-center justify-center p-8">
         <div className="text-center">
-          <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full mx-auto mb-4"></div>
-          <p>Loading profile...</p>
+          <div className="animate-spin h-8 w-8 border-4 border-theme-deepPurple border-t-transparent rounded-full mx-auto mb-4"></div>
+          <p className="text-theme-deepPurple">Loading profile...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 animate-fade-in">
       <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold tracking-tight">Your Profile</h1>
+        <h1 className="text-2xl font-bold tracking-tight text-theme-darkPurple">Your Profile</h1>
         {!isEditing && (
-          <Button onClick={toggleEdit}>
+          <Button 
+            onClick={toggleEdit} 
+            className="bg-theme-deepPurple hover:bg-theme-darkPurple text-white"
+          >
             Edit Profile
           </Button>
         )}
       </div>
       
-      <Card>
-        <CardHeader>
+      <Card className="border border-gray-200 shadow-sm overflow-hidden">
+        <CardHeader className="bg-gradient-to-r from-theme-darkPurple to-theme-deepPurple text-white">
           <CardTitle>Admin Account Information</CardTitle>
-          <CardDescription>
+          <CardDescription className="text-gray-200">
             Manage your personal information and preferences
           </CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="pt-6">
           {isEditing ? (
             <form onSubmit={handleUpdateProfile} className="space-y-6">
               <div className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="firstName">First Name</Label>
-                    <Input
-                      id="firstName"
-                      value={firstName}
-                      onChange={(e) => setFirstName(e.target.value)}
-                      required
-                    />
+                    <div className="relative">
+                      <User className="absolute left-3 top-2.5 h-5 w-5 text-gray-400" />
+                      <Input
+                        id="firstName"
+                        value={firstName}
+                        onChange={(e) => setFirstName(e.target.value)}
+                        className="pl-10"
+                        required
+                      />
+                    </div>
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="lastName">Last Name</Label>
-                    <Input
-                      id="lastName"
-                      value={lastName}
-                      onChange={(e) => setLastName(e.target.value)}
-                      required
-                    />
+                    <div className="relative">
+                      <User className="absolute left-3 top-2.5 h-5 w-5 text-gray-400" />
+                      <Input
+                        id="lastName"
+                        value={lastName}
+                        onChange={(e) => setLastName(e.target.value)}
+                        className="pl-10"
+                        required
+                      />
+                    </div>
                   </div>
                 </div>
                 
                 <div className="space-y-2">
                   <Label htmlFor="email">Email</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    disabled
-                    required
-                  />
+                  <div className="relative">
+                    <Mail className="absolute left-3 top-2.5 h-5 w-5 text-gray-400" />
+                    <Input
+                      id="email"
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      disabled
+                      className="pl-10 bg-gray-50"
+                      required
+                    />
+                  </div>
                   <p className="text-sm text-muted-foreground">
                     Email address cannot be changed.
                   </p>
@@ -186,50 +255,74 @@ const AdminProfile = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="cin">CIN</Label>
-                    <Input
-                      id="cin"
-                      value={cin}
-                      onChange={(e) => setCin(e.target.value)}
-                      required
-                    />
+                    <div className="relative">
+                      <User className="absolute left-3 top-2.5 h-5 w-5 text-gray-400" />
+                      <Input
+                        id="cin"
+                        value={cin}
+                        onChange={(e) => setCin(e.target.value)}
+                        className="pl-10"
+                        required
+                      />
+                    </div>
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="phone">Phone</Label>
-                    <Input
-                      id="phone"
-                      value={phone}
-                      onChange={(e) => setPhone(e.target.value)}
-                      required
-                    />
+                    <div className="relative">
+                      <Phone className="absolute left-3 top-2.5 h-5 w-5 text-gray-400" />
+                      <Input
+                        id="phone"
+                        value={phone}
+                        onChange={(e) => setPhone(e.target.value)}
+                        className="pl-10"
+                        required
+                      />
+                    </div>
                   </div>
                 </div>
                 
                 <div className="space-y-2">
                   <Label htmlFor="company">Company Name</Label>
-                  <Input
-                    id="company"
-                    value={companyName}
-                    onChange={(e) => setCompanyName(e.target.value)}
-                    required
-                  />
+                  <div className="relative">
+                    <Building className="absolute left-3 top-2.5 h-5 w-5 text-gray-400" />
+                    <Input
+                      id="company"
+                      value={companyName}
+                      onChange={(e) => setCompanyName(e.target.value)}
+                      className="pl-10"
+                      required
+                    />
+                  </div>
                 </div>
                 
                 <div className="space-y-2">
                   <Label htmlFor="address">Address</Label>
-                  <Input
-                    id="address"
-                    value={address}
-                    onChange={(e) => setAddress(e.target.value)}
-                    required
-                  />
+                  <div className="relative">
+                    <MapPin className="absolute left-3 top-2.5 h-5 w-5 text-gray-400" />
+                    <Input
+                      id="address"
+                      value={address}
+                      onChange={(e) => setAddress(e.target.value)}
+                      className="pl-10"
+                      required
+                    />
+                  </div>
                 </div>
               </div>
               
               <div className="flex justify-end space-x-4">
-                <Button variant="outline" type="button" onClick={toggleEdit}>
+                <Button 
+                  variant="outline" 
+                  type="button" 
+                  onClick={toggleEdit}
+                >
                   Cancel
                 </Button>
-                <Button type="submit" disabled={updating}>
+                <Button 
+                  type="submit" 
+                  disabled={updating}
+                  className="bg-theme-deepPurple hover:bg-theme-darkPurple text-white"
+                >
                   {updating ? "Saving..." : "Save Changes"}
                 </Button>
               </div>
@@ -239,37 +332,55 @@ const AdminProfile = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-y-6 gap-x-10">
                 <div className="space-y-1">
                   <p className="text-sm font-medium text-muted-foreground">Name</p>
-                  <p className="font-medium">{profileData?.first_name} {profileData?.last_name}</p>
+                  <p className="font-medium text-theme-darkPurple flex items-center">
+                    <User className="mr-2 h-4 w-4 text-theme-deepPurple" />
+                    {profileData?.first_name} {profileData?.last_name}
+                  </p>
                 </div>
                 
                 <div className="space-y-1">
                   <p className="text-sm font-medium text-muted-foreground">Email</p>
-                  <p className="font-medium">{profileData?.email || user?.email}</p>
+                  <p className="font-medium text-theme-darkPurple flex items-center">
+                    <Mail className="mr-2 h-4 w-4 text-theme-deepPurple" />
+                    {profileData?.email || user?.email}
+                  </p>
                 </div>
                 
                 <div className="space-y-1">
                   <p className="text-sm font-medium text-muted-foreground">CIN</p>
-                  <p className="font-medium">{profileData?.cin || "Not set"}</p>
+                  <p className="font-medium text-theme-darkPurple flex items-center">
+                    <User className="mr-2 h-4 w-4 text-theme-deepPurple" />
+                    {profileData?.cin || "Not set"}
+                  </p>
                 </div>
                 
                 <div className="space-y-1">
                   <p className="text-sm font-medium text-muted-foreground">Phone</p>
-                  <p className="font-medium">{profileData?.phone || "Not set"}</p>
+                  <p className="font-medium text-theme-darkPurple flex items-center">
+                    <Phone className="mr-2 h-4 w-4 text-theme-deepPurple" />
+                    {profileData?.phone || "Not set"}
+                  </p>
                 </div>
                 
                 <div className="space-y-1">
                   <p className="text-sm font-medium text-muted-foreground">Company</p>
-                  <p className="font-medium">{profileData?.company_name || "Not set"}</p>
+                  <p className="font-medium text-theme-darkPurple flex items-center">
+                    <Building className="mr-2 h-4 w-4 text-theme-deepPurple" />
+                    {profileData?.company_name || "Not set"}
+                  </p>
                 </div>
                 
                 <div className="space-y-1">
                   <p className="text-sm font-medium text-muted-foreground">Address</p>
-                  <p className="font-medium">{profileData?.address || "Not set"}</p>
+                  <p className="font-medium text-theme-darkPurple flex items-center">
+                    <MapPin className="mr-2 h-4 w-4 text-theme-deepPurple" />
+                    {profileData?.address || "Not set"}
+                  </p>
                 </div>
                 
                 <div className="space-y-1">
                   <p className="text-sm font-medium text-muted-foreground">Account Created</p>
-                  <p className="font-medium">
+                  <p className="font-medium text-theme-darkPurple">
                     {profileData?.created_at 
                       ? new Date(profileData.created_at).toLocaleDateString() 
                       : "Unknown"}
@@ -281,7 +392,7 @@ const AdminProfile = () => {
         </CardContent>
       </Card>
       
-      <Card>
+      <Card className="border border-gray-200 shadow-sm">
         <CardHeader>
           <CardTitle>Account Security</CardTitle>
           <CardDescription>
@@ -292,10 +403,75 @@ const AdminProfile = () => {
           <div className="space-y-4">
             <div className="flex justify-between items-center">
               <div>
-                <h4 className="font-medium">Password</h4>
+                <h4 className="font-medium flex items-center">
+                  <Lock className="mr-2 h-4 w-4 text-theme-deepPurple" />
+                  Password
+                </h4>
                 <p className="text-sm text-muted-foreground">Update your password</p>
               </div>
-              <Button variant="outline">Change Password</Button>
+              <Dialog open={isPasswordDialogOpen} onOpenChange={setIsPasswordDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button variant="outline">Change Password</Button>
+                </DialogTrigger>
+                <DialogContent className="sm:max-w-[425px]">
+                  <DialogHeader>
+                    <DialogTitle>Change Password</DialogTitle>
+                    <DialogDescription>
+                      Create a new password for your account
+                    </DialogDescription>
+                  </DialogHeader>
+                  <form onSubmit={handleChangePassword} className="space-y-4 py-4">
+                    <div className="space-y-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="newPassword">New Password</Label>
+                        <div className="relative">
+                          <Lock className="absolute left-3 top-2.5 h-5 w-5 text-gray-400" />
+                          <Input
+                            id="newPassword"
+                            type="password"
+                            placeholder="••••••••"
+                            value={newPassword}
+                            onChange={(e) => setNewPassword(e.target.value)}
+                            className="pl-10"
+                            required
+                          />
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="confirmPassword">Confirm Password</Label>
+                        <div className="relative">
+                          <Lock className="absolute left-3 top-2.5 h-5 w-5 text-gray-400" />
+                          <Input
+                            id="confirmPassword"
+                            type="password"
+                            placeholder="••••••••"
+                            value={confirmPassword}
+                            onChange={(e) => setConfirmPassword(e.target.value)}
+                            className="pl-10"
+                            required
+                          />
+                        </div>
+                      </div>
+                    </div>
+                    <DialogFooter>
+                      <Button 
+                        type="button" 
+                        variant="outline" 
+                        onClick={() => setIsPasswordDialogOpen(false)}
+                      >
+                        Cancel
+                      </Button>
+                      <Button 
+                        type="submit" 
+                        disabled={passwordLoading}
+                        className="bg-theme-deepPurple hover:bg-theme-darkPurple text-white"
+                      >
+                        {passwordLoading ? "Updating..." : "Update Password"}
+                      </Button>
+                    </DialogFooter>
+                  </form>
+                </DialogContent>
+              </Dialog>
             </div>
             <Separator />
             <div className="flex justify-between items-center">

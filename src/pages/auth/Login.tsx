@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Link, useNavigate } from "react-router-dom";
@@ -49,16 +50,16 @@ const Login = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-theme-darkPurple via-theme-deepPurple to-theme-deepPurple/90 px-4">
       <div className="w-full max-w-md space-y-8">
         <div className="text-center">
-          <h1 className="text-3xl font-bold text-fleet-700">autotrace</h1>
-          <p className="mt-2 text-gray-600">Vehicle Tracking System</p>
+          <h1 className="text-3xl font-bold text-white">autotrace</h1>
+          <p className="mt-2 text-theme-lightBrown">Vehicle Tracking System</p>
         </div>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Sign In</CardTitle>
+        <Card className="backdrop-blur-sm bg-white/95 border-theme-deepPurple/10 shadow-xl">
+          <CardHeader className="space-y-1">
+            <CardTitle className="text-theme-darkPurple text-2xl">Sign In</CardTitle>
             <CardDescription>
               Enter your credentials to access your account
             </CardDescription>
@@ -73,6 +74,7 @@ const Login = () => {
                   placeholder="name@example.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
+                  className="border-theme-deepPurple/20 focus-visible:ring-theme-deepPurple"
                   required
                 />
               </div>
@@ -81,7 +83,7 @@ const Login = () => {
                   <Label htmlFor="password">Password</Label>
                   <Link
                     to="#"
-                    className="text-sm font-medium text-fleet-600 hover:text-fleet-700"
+                    className="text-sm font-medium text-theme-terracotta hover:text-theme-deepPurple"
                   >
                     Forgot password?
                   </Link>
@@ -91,6 +93,7 @@ const Login = () => {
                   type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
+                  className="border-theme-deepPurple/20 focus-visible:ring-theme-deepPurple"
                   required
                 />
               </div>
@@ -98,7 +101,7 @@ const Login = () => {
             <CardFooter className="flex flex-col space-y-4">
               <Button 
                 type="submit" 
-                className="w-full bg-fleet-600 hover:bg-fleet-700" 
+                className="w-full bg-theme-deepPurple hover:bg-theme-darkPurple text-white" 
                 disabled={isLoading}
               >
                 {isLoading ? "Signing in..." : "Sign in"}
@@ -107,7 +110,7 @@ const Login = () => {
                 Don't have an account?{" "}
                 <Link
                   to="/register"
-                  className="font-medium text-fleet-600 hover:text-fleet-700"
+                  className="font-medium text-theme-terracotta hover:text-theme-deepPurple"
                 >
                   Sign up
                 </Link>
