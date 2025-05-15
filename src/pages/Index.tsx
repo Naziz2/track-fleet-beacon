@@ -63,6 +63,8 @@ const Index = () => {
                 <Button asChild className="bg-[#4F1C51] hover:bg-[#210F37] transition-colors duration-300 px-8 py-3 rounded-md text-white text-lg">
                   <Link to="/login">Login to Dashboard</Link>
                 </Button>
+                
+                {/* Registration link hidden to normal users - only accessible via direct URL with access code */}
               </div>
             </div>
             

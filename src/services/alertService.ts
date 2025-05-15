@@ -52,6 +52,7 @@ export async function generateAlertFromPosition(positionData: any, deviceId: str
         
       if (alertError) {
         console.error("Error creating alert:", alertError);
+        return null;
       }
       
       return alertData?.[0] || null;
