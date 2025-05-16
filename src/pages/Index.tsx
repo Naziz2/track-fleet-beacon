@@ -133,11 +133,7 @@ const Index = () => {
           <p className="text-lg text-theme-lightBrown/90 mb-8">
             Join thousands of businesses already using Autotrace to optimize their operations.
           </p>
-          <Button asChild size="lg" className="bg-theme-terracotta hover:bg-theme-lightBrown text-white px-8 py-6 text-lg">
-            <Link to={user ? (user.user_metadata?.role === 'developer' ? '/developer/dashboard' : '/admin/dashboard') : '/register'}>
-              {user ? 'Go to Dashboard' : 'Get Started Today'}
-            </Link>
-          </Button>
+          
         </div>
       </section>
 
