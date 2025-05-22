@@ -135,9 +135,7 @@ const AdminPlan = () => {
                 >
                   Upgrade
                 </Button>
-                <Button className="w-full py-2 rounded-lg text-base" variant="outline">
-                  View Subscribers
-                </Button>
+                
               </div>
               <div className="absolute top-4 right-4 flex gap-2 opacity-0 hover:opacity-100 transition-opacity duration-200 group-hover:opacity-100">
                 <Button size="icon" variant="ghost" onClick={() => setEditingPlan(plan.id)}>
